@@ -46,6 +46,7 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	s.logf("listening on %s", listener.Addr())
 
 	for {
+		s.logf("waiting for a connection")
 		conn, err := listener.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
@@ -65,12 +66,17 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	buf := make([]byte, bufferSize)
 	for {
+		s.logf("waiting for bytes from %s", conn.RemoteAddr())
 		n, err := conn.Read(buf)
 		if n > 0 {
-			if _, writeErr := conn.Write(buf[:n]); writeErr != nil {
+			s.logf("read %d bytes from %s", n, conn.RemoteAddr())
+
+			written, writeErr := conn.Write(buf[:n])
+			if writeErr != nil {
 				s.logf("write error for %s: %v", conn.RemoteAddr(), writeErr)
 				return
 			}
+			s.logf("wrote %d bytes to %s", written, conn.RemoteAddr())
 		}
 
 		if err != nil {

@@ -41,7 +41,7 @@ First implementation milestone:
 - [x] Read bytes from a connection.
 - [x] Write bytes back to a connection.
 - [x] Run each connection in a separate goroutine.
-- [ ] Observe blocking behavior.
+- [ ] Observe blocking behavior manually.
 - [ ] Add read and write deadlines.
 - [ ] Document the connection lifecycle.
 
@@ -178,3 +178,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   application architecture.
 - First implementation milestone: start with a raw TCP echo server before
   implementing HTTP parsing.
+- Added logs around `Accept`, `Read`, and `Write` so blocking behavior can be
+  observed manually with `nc`.

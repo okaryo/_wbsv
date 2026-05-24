@@ -94,6 +94,36 @@ nc 127.0.0.1 8080
 Whatever bytes the client sends are written back by the server. This first step
 is intentionally simple so the TCP connection lifecycle is easy to inspect.
 
+## Observing Blocking Behavior
+
+The server logs before calling `Accept` and `Read`.
+
+When the server prints this log:
+
+```text
+waiting for a connection
+```
+
+it is blocked in `listener.Accept()` until a client connects.
+
+After a client connects, the server prints:
+
+```text
+waiting for bytes from 127.0.0.1:xxxxx
+```
+
+At that point, the connection goroutine is blocked in `conn.Read()` until the
+client sends bytes or closes the connection.
+
+Try this sequence:
+
+1. Start the server with `go run ./cmd/wbsv`.
+2. Connect with `nc 127.0.0.1 8080`, but do not type anything yet.
+3. Observe that the server accepted the connection and is now waiting for bytes.
+4. Type a line in `nc` and press enter.
+5. Observe the read and write logs.
+6. Stop `nc` and observe the connection close log.
+
 ## Project Documents
 
 - `README.md`: project purpose, scope, and high-level learning direction.
