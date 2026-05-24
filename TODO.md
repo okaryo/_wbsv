@@ -25,17 +25,22 @@ Initial focus:
 
 - [x] Define the project purpose.
 - [x] Create initial project documentation.
-- [ ] Decide the first implementation milestone.
+- [x] Decide the first implementation milestone.
 - [ ] Decide how to organize learning notes.
-- [ ] Decide the initial package layout after the first milestone is clear.
+- [x] Decide the initial package layout after the first milestone is clear.
+
+First implementation milestone:
+
+- Build a raw TCP echo server using `net.Listen`.
+- Keep HTTP out of scope until the basic TCP connection lifecycle is visible.
 
 ### 1. Raw TCP Server
 
-- [ ] Create a minimal TCP server with `net.Listen`.
-- [ ] Accept connections in a loop.
-- [ ] Read bytes from a connection.
-- [ ] Write bytes back to a connection.
-- [ ] Run each connection in a separate goroutine.
+- [x] Create a minimal TCP server with `net.Listen`.
+- [x] Accept connections in a loop.
+- [x] Read bytes from a connection.
+- [x] Write bytes back to a connection.
+- [x] Run each connection in a separate goroutine.
 - [ ] Observe blocking behavior.
 - [ ] Add read and write deadlines.
 - [ ] Document the connection lifecycle.
@@ -171,3 +176,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 
 - Initial direction: focus on Web server internals rather than ordinary Web API
   application architecture.
+- First implementation milestone: start with a raw TCP echo server before
+  implementing HTTP parsing.

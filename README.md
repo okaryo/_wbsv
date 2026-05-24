@@ -75,6 +75,25 @@ At each stage, the implementation should remain small enough to inspect and
 explain. When the design becomes unclear, the roadmap should be updated rather
 than treated as fixed.
 
+## Running the Current Server
+
+The current implementation is a raw TCP echo server. It does not speak HTTP yet.
+
+Start the server:
+
+```sh
+go run ./cmd/wbsv
+```
+
+Send bytes from another terminal:
+
+```sh
+nc 127.0.0.1 8080
+```
+
+Whatever bytes the client sends are written back by the server. This first step
+is intentionally simple so the TCP connection lifecycle is easy to inspect.
+
 ## Project Documents
 
 - `README.md`: project purpose, scope, and high-level learning direction.
