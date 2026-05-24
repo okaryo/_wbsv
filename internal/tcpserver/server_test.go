@@ -64,3 +64,52 @@ func TestServerEchoesBytes(t *testing.T) {
 		t.Fatal("server did not stop after context cancellation")
 	}
 }
+
+func TestServerClosesIdleConnectionAfterReadTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := &Server{
+		ReadTimeout: 20 * time.Millisecond,
+		Logger:      log.New(io.Discard, "", 0),
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set client read deadline: %v", err)
+	}
+
+	buf := make([]byte, 1)
+	n, err := conn.Read(buf)
+	if err == nil {
+		t.Fatalf("read succeeded with %d bytes; want closed idle connection", n)
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after context cancellation")
+	}
+}

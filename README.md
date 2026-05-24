@@ -85,6 +85,13 @@ Start the server:
 go run ./cmd/wbsv
 ```
 
+The server closes a connection if the client sends no bytes before the read
+timeout. The default timeout is 30 seconds. To make it easier to observe:
+
+```sh
+go run ./cmd/wbsv --read-timeout 5s
+```
+
 Send bytes from another terminal:
 
 ```sh
@@ -123,6 +130,9 @@ Try this sequence:
 4. Type a line in `nc` and press enter.
 5. Observe the read and write logs.
 6. Stop `nc` and observe the connection close log.
+
+To observe a read timeout, connect with `nc` and do not type anything until the
+timeout expires. The server should log `read timeout` and close that connection.
 
 ## Project Documents
 

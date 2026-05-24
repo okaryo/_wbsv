@@ -6,14 +6,16 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 )
 
 const bufferSize = 4096
 
 // Server accepts raw TCP connections and echoes received bytes back to clients.
 type Server struct {
-	Addr   string
-	Logger *log.Logger
+	Addr        string
+	ReadTimeout time.Duration
+	Logger      *log.Logger
 }
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
@@ -66,6 +68,13 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	buf := make([]byte, bufferSize)
 	for {
+		if s.ReadTimeout > 0 {
+			if err := conn.SetReadDeadline(time.Now().Add(s.ReadTimeout)); err != nil {
+				s.logf("set read deadline error for %s: %v", conn.RemoteAddr(), err)
+				return
+			}
+		}
+
 		s.logf("waiting for bytes from %s", conn.RemoteAddr())
 		n, err := conn.Read(buf)
 		if n > 0 {
@@ -80,7 +89,10 @@ func (s *Server) handleConn(conn net.Conn) {
 		}
 
 		if err != nil {
-			if !errors.Is(err, io.EOF) {
+			var netErr net.Error
+			if errors.As(err, &netErr) && netErr.Timeout() {
+				s.logf("read timeout for %s", conn.RemoteAddr())
+			} else if !errors.Is(err, io.EOF) {
 				s.logf("read error for %s: %v", conn.RemoteAddr(), err)
 			}
 			s.logf("closed connection from %s", conn.RemoteAddr())

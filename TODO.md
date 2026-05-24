@@ -42,7 +42,8 @@ First implementation milestone:
 - [x] Write bytes back to a connection.
 - [x] Run each connection in a separate goroutine.
 - [ ] Observe blocking behavior manually.
-- [ ] Add read and write deadlines.
+- [x] Add read deadlines.
+- [ ] Add write deadlines.
 - [ ] Document the connection lifecycle.
 
 Questions to answer:
@@ -180,3 +181,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   implementing HTTP parsing.
 - Added logs around `Accept`, `Read`, and `Write` so blocking behavior can be
   observed manually with `nc`.
+- Added a read timeout so idle connected clients do not keep a connection
+  goroutine blocked forever.
