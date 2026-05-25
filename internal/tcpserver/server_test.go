@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -162,6 +163,39 @@ func TestServerClosesActiveConnectionsOnShutdown(t *testing.T) {
 	}
 }
 
+func TestServerClosesListenerOnceOnShutdown(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	listener := &blockingListener{
+		done: make(chan struct{}),
+	}
+
+	server := &Server{
+		Logger: log.New(io.Discard, "", 0),
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after context cancellation")
+	}
+
+	if got := listener.CloseCalls(); got != 1 {
+		t.Fatalf("listener Close calls = %d, want 1", got)
+	}
+}
+
 func TestServerSetsReadAndWriteDeadlines(t *testing.T) {
 	t.Parallel()
 
@@ -252,4 +286,39 @@ func (a testAddr) Network() string {
 
 func (a testAddr) String() string {
 	return string(a)
+}
+
+type blockingListener struct {
+	mu         sync.Mutex
+	done       chan struct{}
+	closeCalls int
+}
+
+func (l *blockingListener) Accept() (net.Conn, error) {
+	<-l.done
+	return nil, net.ErrClosed
+}
+
+func (l *blockingListener) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.closeCalls++
+	select {
+	case <-l.done:
+	default:
+		close(l.done)
+	}
+	return nil
+}
+
+func (l *blockingListener) CloseCalls() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.closeCalls
+}
+
+func (l *blockingListener) Addr() net.Addr {
+	return testAddr("listener")
 }

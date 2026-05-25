@@ -19,9 +19,10 @@ type Server struct {
 	WriteTimeout time.Duration
 	Logger       *log.Logger
 
-	mu          sync.Mutex
-	activeConns map[net.Conn]struct{}
-	wg          sync.WaitGroup
+	mu           sync.Mutex
+	activeConns  map[net.Conn]struct{}
+	shuttingDown bool
+	wg           sync.WaitGroup
 }
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
@@ -38,9 +39,16 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 // Serve accepts connections from listener until the context is canceled or an
 // unrecoverable listener error occurs.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
+	var shutdownOnce sync.Once
+	shutdown := func() {
+		shutdownOnce.Do(func() {
+			_ = listener.Close()
+			s.closeActiveConns()
+		})
+	}
+
 	defer func() {
-		_ = listener.Close()
-		s.closeActiveConns()
+		shutdown()
 		s.wg.Wait()
 	}()
 
@@ -50,8 +58,7 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	go func() {
 		select {
 		case <-ctx.Done():
-			_ = listener.Close()
-			s.closeActiveConns()
+			shutdown()
 		case <-done:
 		}
 	}()
@@ -68,7 +75,11 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 			return err
 		}
 
-		s.trackConn(conn)
+		if !s.trackConn(conn) {
+			_ = conn.Close()
+			return nil
+		}
+
 		go func() {
 			defer s.untrackConn(conn)
 			s.handleConn(conn)
@@ -134,16 +145,20 @@ func (s *Server) logf(format string, args ...any) {
 	}
 }
 
-func (s *Server) trackConn(conn net.Conn) {
-	s.wg.Add(1)
-
+func (s *Server) trackConn(conn net.Conn) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.shuttingDown {
+		return false
+	}
+
+	s.wg.Add(1)
 	if s.activeConns == nil {
 		s.activeConns = make(map[net.Conn]struct{})
 	}
 	s.activeConns[conn] = struct{}{}
+	return true
 }
 
 func (s *Server) untrackConn(conn net.Conn) {
@@ -156,6 +171,7 @@ func (s *Server) untrackConn(conn net.Conn) {
 
 func (s *Server) closeActiveConns() {
 	s.mu.Lock()
+	s.shuttingDown = true
 	conns := make([]net.Conn, 0, len(s.activeConns))
 
 	for conn := range s.activeConns {

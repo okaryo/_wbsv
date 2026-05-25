@@ -25,8 +25,11 @@ server reacts by closing the listener.
 
 ```text
 context canceled
+  -> shutdown runs once
   -> listener.Close()
+  -> close active connections
   -> blocked Accept returns an error
+  -> wait for connection goroutines
   -> Serve returns nil
 ```
 
@@ -100,6 +103,11 @@ After closing active connections, `Serve` waits for connection goroutines to
 finish. This is the first step toward graceful shutdown. A more complete server
 would usually distinguish between graceful draining and forceful connection
 closure.
+
+The shutdown cleanup is guarded by `sync.Once` because shutdown can be triggered
+from more than one path. For example, the context watcher may close the listener
+to unblock `Accept`, and the deferred cleanup still runs when `Serve` returns.
+Only one of those paths should perform the actual close operations.
 
 ## Key Takeaways
 

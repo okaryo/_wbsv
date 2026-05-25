@@ -47,6 +47,7 @@ First implementation milestone:
 - [x] Document the connection lifecycle.
 - [x] Track active connections.
 - [x] Close active connections on shutdown.
+- [x] Make shutdown cleanup idempotent with `sync.Once`.
 
 Questions to answer:
 
@@ -191,3 +192,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   `docs/tcp-connection-lifecycle.md`.
 - Added active connection tracking so shutdown closes accepted connections, not
   only the listener.
+- Guarded shutdown cleanup with `sync.Once` so listener and active connection
+  close operations only run once per `Serve` call.
