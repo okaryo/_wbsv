@@ -30,8 +30,8 @@ context canceled
   -> Serve returns nil
 ```
 
-Closing the listener stops accepting new connections. It does not automatically
-close connections that were already accepted.
+Closing the listener stops accepting new connections. The server also tracks
+accepted connections and closes them during shutdown.
 
 ## Connection Lifecycle
 
@@ -40,6 +40,7 @@ Each accepted connection is handled in its own goroutine.
 ```text
 listener.Accept()
   -> net.Conn
+  -> track active connection
   -> go handleConn(conn)
 ```
 
@@ -54,6 +55,7 @@ accepted
   -> repeat
   -> return
   -> deferred conn.Close()
+  -> untrack active connection
 ```
 
 The `Read` call blocks until one of these happens:
@@ -87,16 +89,17 @@ defer conn.Close()
 - `Write` returns a timeout error.
 - `Write` returns another network error.
 
-## Current Limitations
+## Shutdown Behavior
 
-The server currently does not track active connections.
+The server now separates two shutdown actions:
 
-This means shutdown only closes the listener. Already accepted connections keep
-running until their own connection lifecycle ends. With the current read
-deadline, an idle connection will eventually be closed, but there is not yet a
-central shutdown mechanism that closes all active connections immediately.
+- Close the listener so no new connections can be accepted.
+- Close active connections so blocked `Read` or `Write` calls can return.
 
-That will become important when studying graceful shutdown.
+After closing active connections, `Serve` waits for connection goroutines to
+finish. This is the first step toward graceful shutdown. A more complete server
+would usually distinguish between graceful draining and forceful connection
+closure.
 
 ## Key Takeaways
 
@@ -107,3 +110,4 @@ That will become important when studying graceful shutdown.
 - TCP has no request, response, header, status code, or message boundary.
 - Deadlines are used to prevent a connection goroutine from blocking forever.
 - Closing a listener and closing a connection are different operations.
+- Shutdown needs to consider both the listener and already accepted connections.

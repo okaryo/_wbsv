@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,10 @@ type Server struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	Logger       *log.Logger
+
+	mu          sync.Mutex
+	activeConns map[net.Conn]struct{}
+	wg          sync.WaitGroup
 }
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
@@ -33,7 +38,11 @@ func (s *Server) ListenAndServe(ctx context.Context) error {
 // Serve accepts connections from listener until the context is canceled or an
 // unrecoverable listener error occurs.
 func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
-	defer listener.Close()
+	defer func() {
+		_ = listener.Close()
+		s.closeActiveConns()
+		s.wg.Wait()
+	}()
 
 	done := make(chan struct{})
 	defer close(done)
@@ -42,6 +51,7 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		select {
 		case <-ctx.Done():
 			_ = listener.Close()
+			s.closeActiveConns()
 		case <-done:
 		}
 	}()
@@ -58,7 +68,11 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 			return err
 		}
 
-		go s.handleConn(conn)
+		s.trackConn(conn)
+		go func() {
+			defer s.untrackConn(conn)
+			s.handleConn(conn)
+		}()
 	}
 }
 
@@ -117,5 +131,39 @@ func (s *Server) handleConn(conn net.Conn) {
 func (s *Server) logf(format string, args ...any) {
 	if s.Logger != nil {
 		s.Logger.Printf(format, args...)
+	}
+}
+
+func (s *Server) trackConn(conn net.Conn) {
+	s.wg.Add(1)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.activeConns == nil {
+		s.activeConns = make(map[net.Conn]struct{})
+	}
+	s.activeConns[conn] = struct{}{}
+}
+
+func (s *Server) untrackConn(conn net.Conn) {
+	s.mu.Lock()
+	delete(s.activeConns, conn)
+	s.mu.Unlock()
+
+	s.wg.Done()
+}
+
+func (s *Server) closeActiveConns() {
+	s.mu.Lock()
+	conns := make([]net.Conn, 0, len(s.activeConns))
+
+	for conn := range s.activeConns {
+		conns = append(conns, conn)
+	}
+	s.mu.Unlock()
+
+	for _, conn := range conns {
+		_ = conn.Close()
 	}
 }

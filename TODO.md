@@ -45,6 +45,8 @@ First implementation milestone:
 - [x] Add read deadlines.
 - [x] Add write deadlines.
 - [x] Document the connection lifecycle.
+- [x] Track active connections.
+- [x] Close active connections on shutdown.
 
 Questions to answer:
 
@@ -187,3 +189,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   the client blocks for too long.
 - Documented the current TCP server and connection lifecycle in
   `docs/tcp-connection-lifecycle.md`.
+- Added active connection tracking so shutdown closes accepted connections, not
+  only the listener.

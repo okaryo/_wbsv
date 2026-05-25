@@ -115,6 +115,53 @@ func TestServerClosesIdleConnectionAfterReadTimeout(t *testing.T) {
 	}
 }
 
+func TestServerClosesActiveConnectionsOnShutdown(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := &Server{
+		ReadTimeout: time.Hour,
+		Logger:      log.New(io.Discard, "", 0),
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	cancel()
+
+	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set client read deadline: %v", err)
+	}
+
+	buf := make([]byte, 1)
+	if _, err := conn.Read(buf); err == nil {
+		t.Fatal("read succeeded; want closed connection after server shutdown")
+	}
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after context cancellation")
+	}
+}
+
 func TestServerSetsReadAndWriteDeadlines(t *testing.T) {
 	t.Parallel()
 
