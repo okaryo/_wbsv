@@ -13,9 +13,10 @@ const bufferSize = 4096
 
 // Server accepts raw TCP connections and echoes received bytes back to clients.
 type Server struct {
-	Addr        string
-	ReadTimeout time.Duration
-	Logger      *log.Logger
+	Addr         string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	Logger       *log.Logger
 }
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
@@ -80,9 +81,21 @@ func (s *Server) handleConn(conn net.Conn) {
 		if n > 0 {
 			s.logf("read %d bytes from %s", n, conn.RemoteAddr())
 
+			if s.WriteTimeout > 0 {
+				if err := conn.SetWriteDeadline(time.Now().Add(s.WriteTimeout)); err != nil {
+					s.logf("set write deadline error for %s: %v", conn.RemoteAddr(), err)
+					return
+				}
+			}
+
 			written, writeErr := conn.Write(buf[:n])
 			if writeErr != nil {
-				s.logf("write error for %s: %v", conn.RemoteAddr(), writeErr)
+				var netErr net.Error
+				if errors.As(writeErr, &netErr) && netErr.Timeout() {
+					s.logf("write timeout for %s", conn.RemoteAddr())
+				} else {
+					s.logf("write error for %s: %v", conn.RemoteAddr(), writeErr)
+				}
 				return
 			}
 			s.logf("wrote %d bytes to %s", written, conn.RemoteAddr())

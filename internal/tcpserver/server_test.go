@@ -1,6 +1,7 @@
 package tcpserver
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log"
@@ -112,4 +113,96 @@ func TestServerClosesIdleConnectionAfterReadTimeout(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("server did not stop after context cancellation")
 	}
+}
+
+func TestServerSetsReadAndWriteDeadlines(t *testing.T) {
+	t.Parallel()
+
+	conn := &scriptedConn{
+		readData: []byte("hello"),
+	}
+
+	server := &Server{
+		ReadTimeout:  time.Second,
+		WriteTimeout: time.Second,
+		Logger:       log.New(io.Discard, "", 0),
+	}
+
+	server.handleConn(conn)
+
+	if conn.readDeadline.IsZero() {
+		t.Fatal("read deadline was not set")
+	}
+	if conn.writeDeadline.IsZero() {
+		t.Fatal("write deadline was not set")
+	}
+	if got := conn.written.String(); got != "hello" {
+		t.Fatalf("written data = %q, want %q", got, "hello")
+	}
+	if !conn.closed {
+		t.Fatal("connection was not closed")
+	}
+}
+
+type scriptedConn struct {
+	readData []byte
+	readDone bool
+
+	written bytes.Buffer
+
+	readDeadline  time.Time
+	writeDeadline time.Time
+	closed        bool
+}
+
+func (c *scriptedConn) Read(b []byte) (int, error) {
+	if c.readDone {
+		return 0, io.EOF
+	}
+
+	c.readDone = true
+	return copy(b, c.readData), nil
+}
+
+func (c *scriptedConn) Write(b []byte) (int, error) {
+	return c.written.Write(b)
+}
+
+func (c *scriptedConn) Close() error {
+	c.closed = true
+	return nil
+}
+
+func (c *scriptedConn) LocalAddr() net.Addr {
+	return testAddr("local")
+}
+
+func (c *scriptedConn) RemoteAddr() net.Addr {
+	return testAddr("remote")
+}
+
+func (c *scriptedConn) SetDeadline(t time.Time) error {
+	c.readDeadline = t
+	c.writeDeadline = t
+	return nil
+}
+
+func (c *scriptedConn) SetReadDeadline(t time.Time) error {
+	c.readDeadline = t
+	return nil
+}
+
+func (c *scriptedConn) SetWriteDeadline(t time.Time) error {
+	c.writeDeadline = t
+	return nil
+}
+
+type testAddr string
+
+func (a testAddr) Network() string {
+	return "test"
+}
+
+func (a testAddr) String() string {
+	return string(a)
 }

@@ -15,6 +15,7 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8080", "TCP listen address")
 	readTimeout := flag.Duration("read-timeout", 30*time.Second, "maximum time to wait for bytes from a connected client")
+	writeTimeout := flag.Duration("write-timeout", 30*time.Second, "maximum time to wait while writing bytes to a connected client")
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "wbsv: ", log.LstdFlags|log.Lmicroseconds)
@@ -22,9 +23,10 @@ func main() {
 	defer stop()
 
 	server := &tcpserver.Server{
-		Addr:        *addr,
-		ReadTimeout: *readTimeout,
-		Logger:      logger,
+		Addr:         *addr,
+		ReadTimeout:  *readTimeout,
+		WriteTimeout: *writeTimeout,
+		Logger:       logger,
 	}
 
 	if err := server.ListenAndServe(ctx); err != nil {

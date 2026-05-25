@@ -92,6 +92,12 @@ timeout. The default timeout is 30 seconds. To make it easier to observe:
 go run ./cmd/wbsv --read-timeout 5s
 ```
 
+The server also sets a write timeout before echoing bytes back to the client:
+
+```sh
+go run ./cmd/wbsv --write-timeout 5s
+```
+
 Send bytes from another terminal:
 
 ```sh

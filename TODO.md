@@ -43,7 +43,7 @@ First implementation milestone:
 - [x] Run each connection in a separate goroutine.
 - [ ] Observe blocking behavior manually.
 - [x] Add read deadlines.
-- [ ] Add write deadlines.
+- [x] Add write deadlines.
 - [ ] Document the connection lifecycle.
 
 Questions to answer:
@@ -183,3 +183,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   observed manually with `nc`.
 - Added a read timeout so idle connected clients do not keep a connection
   goroutine blocked forever.
+- Added a write timeout so a connection can be closed if writing bytes back to
+  the client blocks for too long.
