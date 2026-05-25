@@ -63,8 +63,9 @@ Questions to answer:
 - [ ] Handle `Content-Length`.
 - [ ] Read request bodies incrementally.
 - [ ] Return errors for malformed requests.
+- [x] Separate line boundary reading from request line parsing.
 - [ ] Separate tokenizer, parser state, and parsed request model.
-- [ ] Add tests for partial reads and malformed input.
+- [x] Add tests for partial reads and malformed input.
 
 Questions to answer:
 
@@ -196,3 +197,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   close operations only run once per `Serve` call.
 - Added the first HTTP parsing unit: request line parsing for method,
   request-target, and HTTP version.
+- Added CRLF line reading so request lines and headers can be extracted from a
+  TCP byte stream before being parsed.
