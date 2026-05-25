@@ -58,7 +58,7 @@ Questions to answer:
 
 ### 2. Minimal HTTP Request Parsing
 
-- [ ] Parse the request line.
+- [x] Parse the request line.
 - [ ] Parse headers.
 - [ ] Handle `Content-Length`.
 - [ ] Read request bodies incrementally.
@@ -194,3 +194,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   only the listener.
 - Guarded shutdown cleanup with `sync.Once` so listener and active connection
   close operations only run once per `Serve` call.
+- Added the first HTTP parsing unit: request line parsing for method,
+  request-target, and HTTP version.
