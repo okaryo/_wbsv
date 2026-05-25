@@ -44,7 +44,7 @@ First implementation milestone:
 - [ ] Observe blocking behavior manually.
 - [x] Add read deadlines.
 - [x] Add write deadlines.
-- [ ] Document the connection lifecycle.
+- [x] Document the connection lifecycle.
 
 Questions to answer:
 
@@ -185,3 +185,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   goroutine blocked forever.
 - Added a write timeout so a connection can be closed if writing bytes back to
   the client blocks for too long.
+- Documented the current TCP server and connection lifecycle in
+  `docs/tcp-connection-lifecycle.md`.

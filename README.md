@@ -145,3 +145,4 @@ timeout expires. The server should log `read timeout` and close that connection.
 - `README.md`: project purpose, scope, and high-level learning direction.
 - `AGENTS.md`: working instructions for AI agents and future contributors.
 - `TODO.md`: living learning roadmap and progress tracker.
+- `docs/tcp-connection-lifecycle.md`: notes on the current TCP server lifecycle.
