@@ -46,6 +46,9 @@ data to find a CRLF boundary.
 `LineReader` reads one CRLF-terminated line and returns it without the trailing
 CRLF.
 
+It checks the configured maximum while reading. This avoids building an
+unbounded string before rejecting an oversized line.
+
 It currently rejects:
 
 - LF-only line endings.

@@ -199,3 +199,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   request-target, and HTTP version.
 - Added CRLF line reading so request lines and headers can be extracted from a
   TCP byte stream before being parsed.
+- Updated line reading to enforce the maximum line length while reading instead
+  of building an oversized string first.

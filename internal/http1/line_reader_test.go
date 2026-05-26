@@ -61,6 +61,23 @@ func TestLineReaderRejectsLongLine(t *testing.T) {
 	}
 }
 
+func TestLineReaderStopsAfterMaxLineExceeded(t *testing.T) {
+	t.Parallel()
+
+	source := &chunkedStringReader{
+		chunks: []string{"GET /too", "-long", " HTTP/1.1\r\n"},
+	}
+	reader := NewLineReader(source, len("GET /too"))
+
+	_, err := reader.ReadLine()
+	if !errors.Is(err, ErrLineTooLong) {
+		t.Fatalf("ReadLine() error = %v, want ErrLineTooLong", err)
+	}
+	if source.reads != 2 {
+		t.Fatalf("source reads = %d, want 2", source.reads)
+	}
+}
+
 func TestLineReaderSupportsIncrementalReads(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +96,7 @@ func TestLineReaderSupportsIncrementalReads(t *testing.T) {
 
 type chunkedStringReader struct {
 	chunks []string
+	reads  int
 }
 
 func (r *chunkedStringReader) Read(p []byte) (int, error) {
@@ -86,6 +104,7 @@ func (r *chunkedStringReader) Read(p []byte) (int, error) {
 		return 0, errors.New("unexpected read")
 	}
 
+	r.reads++
 	chunk := r.chunks[0]
 	r.chunks = r.chunks[1:]
 	return copy(p, chunk), nil

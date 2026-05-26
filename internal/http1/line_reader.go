@@ -2,10 +2,10 @@ package http1
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 )
 
 var (
@@ -30,21 +30,28 @@ func NewLineReader(r io.Reader, maxLine int) *LineReader {
 
 // ReadLine reads one line and returns it without the trailing CRLF.
 func (r *LineReader) ReadLine() (string, error) {
-	line, err := r.reader.ReadString('\n')
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return "", ErrUnexpectedEOF
+	var line []byte
+
+	for {
+		b, err := r.reader.ReadByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return "", ErrUnexpectedEOF
+			}
+			return "", err
 		}
-		return "", err
-	}
 
-	if r.maxLine > 0 && len(line) > r.maxLine {
-		return "", fmt.Errorf("%w: %d bytes", ErrLineTooLong, len(line))
-	}
+		line = append(line, b)
+		if r.maxLine > 0 && len(line) > r.maxLine {
+			return "", fmt.Errorf("%w: more than %d bytes", ErrLineTooLong, r.maxLine)
+		}
 
-	if !strings.HasSuffix(line, "\r\n") {
-		return "", ErrLineEnding
-	}
+		if b == '\n' {
+			if !bytes.HasSuffix(line, []byte("\r\n")) {
+				return "", ErrLineEnding
+			}
 
-	return strings.TrimSuffix(line, "\r\n"), nil
+			return string(line[:len(line)-len("\r\n")]), nil
+		}
+	}
 }
