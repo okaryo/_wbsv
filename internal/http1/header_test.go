@@ -126,3 +126,104 @@ func TestReadHeaderFieldsRejectsMalformedHeader(t *testing.T) {
 		t.Fatalf("ReadHeaderFields() error = %v, want ErrMalformedHeader", err)
 	}
 }
+
+func TestContentLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		fields []HeaderField
+		want   int64
+		found  bool
+	}{
+		{
+			name: "missing",
+			fields: []HeaderField{
+				{Name: "Host", Value: "localhost"},
+			},
+			found: false,
+		},
+		{
+			name: "present",
+			fields: []HeaderField{
+				{Name: "Content-Length", Value: "123"},
+			},
+			want:  123,
+			found: true,
+		},
+		{
+			name: "case insensitive name",
+			fields: []HeaderField{
+				{Name: "content-length", Value: "5"},
+			},
+			want:  5,
+			found: true,
+		},
+		{
+			name: "same duplicate value",
+			fields: []HeaderField{
+				{Name: "Content-Length", Value: "10"},
+				{Name: "content-length", Value: "10"},
+			},
+			want:  10,
+			found: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, found, err := ContentLength(tt.fields)
+			if err != nil {
+				t.Fatalf("ContentLength() error = %v", err)
+			}
+			if found != tt.found {
+				t.Fatalf("ContentLength() found = %v, want %v", found, tt.found)
+			}
+			if got != tt.want {
+				t.Fatalf("ContentLength() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestContentLengthRejectsInvalidValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		value string
+	}{
+		{name: "empty", value: ""},
+		{name: "negative", value: "-1"},
+		{name: "explicit plus", value: "+1"},
+		{name: "not decimal", value: "abc"},
+		{name: "fraction", value: "1.5"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, _, err := ContentLength([]HeaderField{
+				{Name: "Content-Length", Value: tt.value},
+			})
+			if !errors.Is(err, ErrInvalidContentLength) {
+				t.Fatalf("ContentLength() error = %v, want ErrInvalidContentLength", err)
+			}
+		})
+	}
+}
+
+func TestContentLengthRejectsConflictingDuplicates(t *testing.T) {
+	t.Parallel()
+
+	_, _, err := ContentLength([]HeaderField{
+		{Name: "Content-Length", Value: "10"},
+		{Name: "Content-Length", Value: "11"},
+	})
+	if !errors.Is(err, ErrConflictingHeader) {
+		t.Fatalf("ContentLength() error = %v, want ErrConflictingHeader", err)
+	}
+}
