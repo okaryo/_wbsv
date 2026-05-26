@@ -148,3 +148,4 @@ timeout expires. The server should log `read timeout` and close that connection.
 - `docs/tcp-connection-lifecycle.md`: notes on the current TCP server lifecycle.
 - `docs/http-request-line.md`: notes on the first HTTP request parsing step.
 - `docs/http-line-reading.md`: notes on reading CRLF-terminated HTTP lines.
+- `docs/http-headers.md`: notes on parsing HTTP header fields.

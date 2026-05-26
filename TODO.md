@@ -59,7 +59,7 @@ Questions to answer:
 ### 2. Minimal HTTP Request Parsing
 
 - [x] Parse the request line.
-- [ ] Parse headers.
+- [x] Parse headers.
 - [ ] Handle `Content-Length`.
 - [ ] Read request bodies incrementally.
 - [ ] Return errors for malformed requests.
@@ -201,3 +201,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   TCP byte stream before being parsed.
 - Updated line reading to enforce the maximum line length while reading instead
   of building an oversized string first.
+- Added minimal HTTP header parsing for `Name: value` lines and the empty line
+  that terminates the header section.
