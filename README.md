@@ -150,3 +150,4 @@ timeout expires. The server should log `read timeout` and close that connection.
 - `docs/http-line-reading.md`: notes on reading CRLF-terminated HTTP lines.
 - `docs/http-headers.md`: notes on parsing HTTP header fields.
 - `docs/http-content-length.md`: notes on interpreting fixed body length.
+- `docs/http-body.md`: notes on reading fixed-length HTTP bodies.

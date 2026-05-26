@@ -61,7 +61,7 @@ Questions to answer:
 - [x] Parse the request line.
 - [x] Parse headers.
 - [x] Handle `Content-Length`.
-- [ ] Read request bodies incrementally.
+- [x] Read request bodies incrementally.
 - [ ] Return errors for malformed requests.
 - [x] Separate line boundary reading from request line parsing.
 - [ ] Separate tokenizer, parser state, and parsed request model.
@@ -204,3 +204,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added minimal HTTP header parsing for `Name: value` lines and the empty line
   that terminates the header section.
 - Added `Content-Length` interpretation for fixed-length request bodies.
+- Added fixed-length body reading through the same buffered reader used for
+  request lines and headers.
