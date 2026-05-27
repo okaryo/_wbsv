@@ -76,10 +76,10 @@ Questions to answer:
 
 ### 3. HTTP Response Writing
 
-- [ ] Write a valid HTTP status line.
-- [ ] Write response headers.
-- [ ] Write fixed-length response bodies.
-- [ ] Set `Content-Length` correctly.
+- [x] Write a valid HTTP status line.
+- [x] Write response headers.
+- [x] Write fixed-length response bodies.
+- [x] Set `Content-Length` correctly.
 - [ ] Set common MIME types.
 - [ ] Implement basic error responses.
 - [ ] Compare behavior with `net/http`.
@@ -208,3 +208,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   request lines and headers.
 - Added `ReadRequest` to compose request line, headers, `Content-Length`, body
   reading, and request-level validation.
+- Added fixed-length HTTP response writing with status line, headers,
+  `Content-Length`, and body.
