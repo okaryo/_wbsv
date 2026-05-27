@@ -62,9 +62,9 @@ Questions to answer:
 - [x] Parse headers.
 - [x] Handle `Content-Length`.
 - [x] Read request bodies incrementally.
-- [ ] Return errors for malformed requests.
+- [x] Return errors for malformed requests.
 - [x] Separate line boundary reading from request line parsing.
-- [ ] Separate tokenizer, parser state, and parsed request model.
+- [x] Separate tokenizer, parser state, and parsed request model.
 - [x] Add tests for partial reads and malformed input.
 
 Questions to answer:
@@ -206,3 +206,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added `Content-Length` interpretation for fixed-length request bodies.
 - Added fixed-length body reading through the same buffered reader used for
   request lines and headers.
+- Added `ReadRequest` to compose request line, headers, `Content-Length`, body
+  reading, and request-level validation.

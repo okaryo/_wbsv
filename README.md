@@ -151,3 +151,4 @@ timeout expires. The server should log `read timeout` and close that connection.
 - `docs/http-headers.md`: notes on parsing HTTP header fields.
 - `docs/http-content-length.md`: notes on interpreting fixed body length.
 - `docs/http-body.md`: notes on reading fixed-length HTTP bodies.
+- `docs/http-request.md`: notes on composing the minimal HTTP request parser.
