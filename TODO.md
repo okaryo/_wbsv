@@ -81,7 +81,7 @@ Questions to answer:
 - [x] Write fixed-length response bodies.
 - [x] Set `Content-Length` correctly.
 - [x] Set common MIME types.
-- [ ] Implement basic error responses.
+- [x] Implement basic error responses.
 - [ ] Compare behavior with `net/http`.
 
 Questions to answer:
@@ -211,3 +211,4 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added fixed-length HTTP response writing with status line, headers,
   `Content-Length`, and body.
 - Added common MIME type helpers for response `Content-Type`.
+- Added basic plain-text HTTP error responses.

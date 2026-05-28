@@ -112,3 +112,39 @@ func TestWriteResponseRejectsMalformedReasonPhrase(t *testing.T) {
 		t.Fatalf("WriteResponse() error = %v, want ErrMalformedResponse", err)
 	}
 }
+
+func TestErrorResponse(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	response := ErrorResponse(400, "bad request")
+
+	if err := WriteResponse(&buf, response); err != nil {
+		t.Fatalf("WriteResponse() error = %v", err)
+	}
+
+	want := "HTTP/1.1 400 Bad Request\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"Content-Length: 12\r\n" +
+		"\r\n" +
+		"bad request\n"
+	if got := buf.String(); got != want {
+		t.Fatalf("response = %q, want %q", got, want)
+	}
+}
+
+func TestErrorResponseUsesStatusTextWhenMessageIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	response := ErrorResponse(501, "")
+
+	if string(response.Body) != "Not Implemented\n" {
+		t.Fatalf("body = %q, want %q", string(response.Body), "Not Implemented\n")
+	}
+	if len(response.Headers) != 1 {
+		t.Fatalf("headers len = %d, want 1", len(response.Headers))
+	}
+	if response.Headers[0] != (HeaderField{Name: "Content-Type", Value: "text/plain; charset=utf-8"}) {
+		t.Fatalf("header = %#v, want text/plain Content-Type", response.Headers[0])
+	}
+}

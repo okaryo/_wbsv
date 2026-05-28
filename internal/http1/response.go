@@ -74,6 +74,21 @@ func WriteResponse(w io.Writer, response Response) error {
 	return err
 }
 
+// ErrorResponse returns a small plain-text error response.
+func ErrorResponse(statusCode int, message string) Response {
+	if message == "" {
+		message = StatusText(statusCode)
+	}
+	if !strings.HasSuffix(message, "\n") {
+		message += "\n"
+	}
+
+	return WithContentType(Response{
+		StatusCode: statusCode,
+		Body:       []byte(message),
+	}, "text/plain; charset=utf-8")
+}
+
 // StatusText returns a reason phrase for common HTTP status codes.
 func StatusText(code int) string {
 	switch code {
@@ -89,8 +104,14 @@ func StatusText(code int) string {
 		return "Not Found"
 	case 405:
 		return "Method Not Allowed"
+	case 411:
+		return "Length Required"
+	case 413:
+		return "Content Too Large"
 	case 500:
 		return "Internal Server Error"
+	case 501:
+		return "Not Implemented"
 	default:
 		return "Status"
 	}
