@@ -56,6 +56,11 @@ func WriteResponse(w io.Writer, response Response) error {
 		}
 	}
 
+	if !statusAllowsBody(response.StatusCode) {
+		_, err := io.WriteString(w, "\r\n")
+		return err
+	}
+
 	if err := writeHeaderField(w, HeaderField{
 		Name:  "Content-Length",
 		Value: strconv.Itoa(len(response.Body)),
@@ -98,6 +103,8 @@ func StatusText(code int) string {
 		return "Created"
 	case 204:
 		return "No Content"
+	case 304:
+		return "Not Modified"
 	case 400:
 		return "Bad Request"
 	case 404:
@@ -115,6 +122,13 @@ func StatusText(code int) string {
 	default:
 		return "Status"
 	}
+}
+
+func statusAllowsBody(statusCode int) bool {
+	if statusCode >= 100 && statusCode < 200 {
+		return false
+	}
+	return statusCode != 204 && statusCode != 304
 }
 
 func writeHeaderField(w io.Writer, header HeaderField) error {

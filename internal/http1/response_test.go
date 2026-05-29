@@ -75,6 +75,56 @@ func TestWriteResponseSupportsCustomReasonPhrase(t *testing.T) {
 	}
 }
 
+func TestWriteResponseOmitsBodyForNoBodyStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		response Response
+		want     string
+	}{
+		{
+			name: "204",
+			response: Response{
+				StatusCode: 204,
+				Body:       []byte("must not be written"),
+			},
+			want: "HTTP/1.1 204 No Content\r\n\r\n",
+		},
+		{
+			name: "304",
+			response: Response{
+				StatusCode: 304,
+				Body:       []byte("must not be written"),
+			},
+			want: "HTTP/1.1 304 Not Modified\r\n\r\n",
+		},
+		{
+			name: "informational",
+			response: Response{
+				StatusCode:   100,
+				ReasonPhrase: "Continue",
+				Body:         []byte("must not be written"),
+			},
+			want: "HTTP/1.1 100 Continue\r\n\r\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var buf bytes.Buffer
+			if err := WriteResponse(&buf, tt.response); err != nil {
+				t.Fatalf("WriteResponse() error = %v", err)
+			}
+			if got := buf.String(); got != tt.want {
+				t.Fatalf("response = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWriteResponseRejectsInvalidStatusCode(t *testing.T) {
 	t.Parallel()
 

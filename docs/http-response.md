@@ -32,6 +32,9 @@ body
 It always writes `Content-Length` based on the actual body length. If the caller
 passes a `Content-Length` header, that value is ignored and replaced.
 
+For `1xx`, `204`, and `304` responses, it does not write `Content-Length` or
+body bytes.
+
 The writer currently validates:
 
 - HTTP version.
@@ -45,6 +48,5 @@ This step does not yet implement:
 
 - MIME type detection.
 - Error response helpers.
-- Special status-code body rules such as `204 No Content`.
 - Chunked transfer encoding.
 - Keep-alive or connection-close behavior.

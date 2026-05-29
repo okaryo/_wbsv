@@ -82,7 +82,7 @@ Questions to answer:
 - [x] Set `Content-Length` correctly.
 - [x] Set common MIME types.
 - [x] Implement basic error responses.
-- [ ] Compare behavior with `net/http`.
+- [x] Compare behavior with `net/http`.
 
 Questions to answer:
 
@@ -212,3 +212,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   `Content-Length`, and body.
 - Added common MIME type helpers for response `Content-Type`.
 - Added basic plain-text HTTP error responses.
+- Compared response body rules with `net/http` and suppressed body output for
+  `1xx`, `204`, and `304` responses.
