@@ -15,6 +15,7 @@ func TestHandlerServesOneHTTPRequest(t *testing.T) {
 	response := serveWithPipe(t,
 		"GET /hello HTTP/1.1\r\n"+
 			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
 			"\r\n",
 	)
 
@@ -22,11 +23,39 @@ func TestHandlerServesOneHTTPRequest(t *testing.T) {
 		"X-WBSV-Method: GET\r\n" +
 		"X-WBSV-Target: /hello\r\n" +
 		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"Connection: close\r\n" +
 		"Content-Length: 17\r\n" +
 		"\r\n" +
 		"hello from _wbsv\n"
 	if response != want {
 		t.Fatalf("response = %q, want %q", response, want)
+	}
+}
+
+func TestHandlerKeepsHTTP11ConnectionAlive(t *testing.T) {
+	t.Parallel()
+
+	response := serveWithPipe(t,
+		"GET /first HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"\r\n"+
+			"GET /second HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
+			"\r\n",
+	)
+
+	if got := strings.Count(response, "HTTP/1.1 200 OK\r\n"); got != 2 {
+		t.Fatalf("200 response count = %d, want 2; response = %q", got, response)
+	}
+	if !strings.Contains(response, "X-WBSV-Target: /first\r\n") {
+		t.Fatalf("response = %q, want first target header", response)
+	}
+	if !strings.Contains(response, "X-WBSV-Target: /second\r\n") {
+		t.Fatalf("response = %q, want second target header", response)
+	}
+	if !strings.Contains(response, "Connection: close\r\n") {
+		t.Fatalf("response = %q, want close header on final response", response)
 	}
 }
 

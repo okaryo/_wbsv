@@ -11,11 +11,11 @@ TCP listener
   -> HTTP request parser
   -> fixed response
   -> HTTP response writer
-  -> close connection
+  -> next request or close connection
 ```
 
-This is still intentionally small. The server handles one HTTP request per TCP
-connection and then closes the connection.
+The server now supports basic HTTP/1.1 keep-alive. It can read multiple requests
+from the same TCP connection until the connection should close.
 
 ## Current Response
 
@@ -41,10 +41,14 @@ Examples:
 - oversized body -> `413 Content Too Large`
 - `Transfer-Encoding` -> `501 Not Implemented`
 
-## Limitations
+## Connection Behavior
 
-The server does not implement keep-alive yet.
+For HTTP/1.1 requests, the server keeps the connection open by default.
 
-Each connection is closed after one request and one response. This keeps the
-first integration step focused on connecting the byte stream, request parser,
-and response writer.
+The server closes the connection after the response when:
+
+- The request contains `Connection: close`.
+- The request uses HTTP/1.0.
+- Request parsing fails.
+
+HTTP/1.0 keep-alive is not implemented yet.

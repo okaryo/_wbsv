@@ -104,8 +104,9 @@ Send a request from another terminal:
 curl -i http://127.0.0.1:8080/hello
 ```
 
-The server parses one request, writes one fixed response, and closes the
-connection. Keep-alive is not implemented yet.
+The server parses HTTP/1.1 requests, writes fixed responses, and supports basic
+keep-alive. Send `Connection: close` when you want the response to close the
+connection.
 
 ## Observing Blocking Behavior
 
@@ -140,7 +141,7 @@ Try this sequence:
 Example request for `nc`:
 
 ```sh
-printf 'GET /hello HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc 127.0.0.1 8080
+printf 'GET /hello HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' | nc 127.0.0.1 8080
 ```
 
 To observe a read timeout, connect with `nc` and do not type anything until the

@@ -101,6 +101,23 @@ func ContentLength(fields []HeaderField) (int64, bool, error) {
 	return length, found, nil
 }
 
+// HeaderHasToken reports whether a comma-separated header field contains token.
+func HeaderHasToken(fields []HeaderField, name string, token string) bool {
+	for _, field := range fields {
+		if !strings.EqualFold(field.Name, name) {
+			continue
+		}
+
+		for value := range strings.SplitSeq(field.Value, ",") {
+			if strings.EqualFold(strings.Trim(value, " \t"), token) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func parseContentLengthValue(value string) (int64, error) {
 	if value == "" {
 		return 0, fmt.Errorf("%w: empty", ErrInvalidContentLength)

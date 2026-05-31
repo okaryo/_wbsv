@@ -227,3 +227,18 @@ func TestContentLengthRejectsConflictingDuplicates(t *testing.T) {
 		t.Fatalf("ContentLength() error = %v, want ErrConflictingHeader", err)
 	}
 }
+
+func TestHeaderHasToken(t *testing.T) {
+	t.Parallel()
+
+	fields := []HeaderField{
+		{Name: "Connection", Value: "keep-alive, close"},
+	}
+
+	if !HeaderHasToken(fields, "connection", "Close") {
+		t.Fatal("HeaderHasToken() = false, want true")
+	}
+	if HeaderHasToken(fields, "Connection", "upgrade") {
+		t.Fatal("HeaderHasToken() = true, want false")
+	}
+}
