@@ -95,9 +95,9 @@ Questions to answer:
 - [x] Handle one HTTP request per TCP connection.
 - [x] Implement basic HTTP/1.1 keep-alive behavior.
 - [x] Support `Connection: close`.
-- [ ] Add read timeout behavior.
-- [ ] Add write timeout behavior.
-- [ ] Explore slow-client behavior.
+- [x] Add read timeout behavior.
+- [x] Add write timeout behavior.
+- [x] Explore slow-client behavior.
 - [ ] Add graceful shutdown.
 - [ ] Confirm goroutines exit as expected.
 
@@ -218,3 +218,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Connected the HTTP parser and response writer to the TCP server. The runtime
   now handles one HTTP request per connection.
 - Added basic HTTP/1.1 keep-alive and `Connection: close` handling.
+- Added tests for keep-alive idle read timeout and blocked response write
+  timeout.

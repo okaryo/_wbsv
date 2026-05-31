@@ -111,17 +111,83 @@ func TestHandlerReturnsRequestTimeout(t *testing.T) {
 	}
 }
 
-func serveWithPipe(t *testing.T, request string) string {
-	t.Helper()
+func TestHandlerReturnsRequestTimeoutWhileWaitingForNextKeepAliveRequest(t *testing.T) {
+	t.Parallel()
+
+	response := serveWithHandler(t,
+		&Handler{
+			ReadTimeout:  10 * time.Millisecond,
+			WriteTimeout: time.Second,
+			Logger:       log.New(io.Discard, "", 0),
+		},
+		"GET /first HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"\r\n",
+	)
+
+	if !strings.Contains(response, "X-WBSV-Target: /first\r\n") {
+		t.Fatalf("response = %q, want first response", response)
+	}
+	if !strings.Contains(response, "HTTP/1.1 408 Request Timeout\r\n") {
+		t.Fatalf("response = %q, want 408 response after keep-alive idle timeout", response)
+	}
+}
+
+func TestHandlerReturnsWhenResponseWriteTimesOut(t *testing.T) {
+	t.Parallel()
 
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
 
 	handler := &Handler{
 		ReadTimeout:  time.Second,
+		WriteTimeout: 10 * time.Millisecond,
+		Logger:       log.New(io.Discard, "", 0),
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer serverConn.Close()
+		handler.ServeConn(serverConn)
+	}()
+
+	if err := clientConn.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set client deadline: %v", err)
+	}
+	if _, err := io.WriteString(clientConn,
+		"GET /slow-reader HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
+			"\r\n",
+	); err != nil {
+		t.Fatalf("write request: %v", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not return after write timeout")
+	}
+}
+
+func serveWithPipe(t *testing.T, request string) string {
+	t.Helper()
+
+	handler := &Handler{
+		ReadTimeout:  time.Second,
 		WriteTimeout: time.Second,
 		Logger:       log.New(io.Discard, "", 0),
 	}
+
+	return serveWithHandler(t, handler, request)
+}
+
+func serveWithHandler(t *testing.T, handler *Handler, request string) string {
+	t.Helper()
+
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
 
 	done := make(chan struct{})
 	go func() {

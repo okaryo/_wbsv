@@ -50,5 +50,10 @@ The server closes the connection after the response when:
 - The request contains `Connection: close`.
 - The request uses HTTP/1.0.
 - Request parsing fails.
+- The read timeout expires while waiting for a request.
+- Writing the response times out.
 
 HTTP/1.0 keep-alive is not implemented yet.
+
+For keep-alive connections, the read deadline is refreshed before each request.
+This means an idle connection cannot wait forever between requests.
