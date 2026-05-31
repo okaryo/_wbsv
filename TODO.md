@@ -110,7 +110,7 @@ Questions to answer:
 
 ### 5. Handler and Middleware Model
 
-- [ ] Define a minimal handler interface.
+- [x] Define a minimal handler interface.
 - [ ] Add a request context model.
 - [ ] Add a response writer abstraction.
 - [ ] Implement middleware chaining.
@@ -222,3 +222,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   timeout.
 - Added graceful shutdown with a bounded wait before force-closing active
   connections.
+- Added a minimal application handler interface so protocol handling and
+  application behavior can evolve separately.

@@ -9,7 +9,7 @@ TCP listener
   -> Accept
   -> connection goroutine
   -> HTTP request parser
-  -> fixed response
+  -> application handler
   -> HTTP response writer
   -> next request or close connection
 ```
@@ -17,9 +17,10 @@ TCP listener
 The server now supports basic HTTP/1.1 keep-alive. It can read multiple requests
 from the same TCP connection until the connection should close.
 
-## Current Response
+## Current Default Response
 
-For a valid request, the server returns:
+If no application handler is configured, the server uses a small default handler
+that returns:
 
 ```text
 HTTP/1.1 200 OK

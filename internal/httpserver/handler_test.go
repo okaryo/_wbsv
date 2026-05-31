@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/okaryo/_wbsv/internal/http1"
 )
 
 func TestHandlerServesOneHTTPRequest(t *testing.T) {
@@ -56,6 +58,42 @@ func TestHandlerKeepsHTTP11ConnectionAlive(t *testing.T) {
 	}
 	if !strings.Contains(response, "Connection: close\r\n") {
 		t.Fatalf("response = %q, want close header on final response", response)
+	}
+}
+
+func TestHandlerUsesApplicationHandler(t *testing.T) {
+	t.Parallel()
+
+	response := serveWithHandler(t,
+		&Handler{
+			ReadTimeout:  time.Second,
+			WriteTimeout: time.Second,
+			Logger:       log.New(io.Discard, "", 0),
+			App: AppHandlerFunc(func(request http1.Request) http1.Response {
+				return http1.Response{
+					StatusCode: 201,
+					Headers: []http1.HeaderField{
+						{Name: "X-App-Target", Value: request.RequestLine.RequestTarget},
+					},
+					Body: []byte("created\n"),
+				}
+			}),
+		},
+		"POST /items HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
+			"Content-Length: 0\r\n"+
+			"\r\n",
+	)
+
+	want := "HTTP/1.1 201 Created\r\n" +
+		"X-App-Target: /items\r\n" +
+		"Connection: close\r\n" +
+		"Content-Length: 8\r\n" +
+		"\r\n" +
+		"created\n"
+	if response != want {
+		t.Fatalf("response = %q, want %q", response, want)
 	}
 }
 

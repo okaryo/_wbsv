@@ -23,6 +23,7 @@ type Handler struct {
 	MaxHeaders   int
 	MaxBody      int64
 	Logger       *log.Logger
+	App          AppHandler
 }
 
 // ServeConn handles HTTP/1.x requests until the connection should close.
@@ -84,17 +85,8 @@ func (h *Handler) responseForRequest(request http1.Request, err error) (http1.Re
 		}
 	}
 
-	body := []byte("hello from _wbsv\n")
-	response := http1.Response{
-		StatusCode: 200,
-		Headers: []http1.HeaderField{
-			{Name: "X-WBSV-Method", Value: request.RequestLine.Method},
-			{Name: "X-WBSV-Target", Value: request.RequestLine.RequestTarget},
-		},
-		Body: body,
-	}
 	closeAfterResponse := shouldCloseConnection(request)
-	return http1.WithContentType(response, "text/plain; charset=utf-8"), closeAfterResponse
+	return h.appHandler().ServeHTTP(request), closeAfterResponse
 }
 
 func shouldCloseConnection(request http1.Request) bool {
@@ -123,6 +115,13 @@ func (h *Handler) maxBody() int64 {
 		return h.MaxBody
 	}
 	return defaultMaxBody
+}
+
+func (h *Handler) appHandler() AppHandler {
+	if h.App != nil {
+		return h.App
+	}
+	return defaultAppHandler
 }
 
 func (h *Handler) logf(format string, args ...any) {
