@@ -98,8 +98,8 @@ Questions to answer:
 - [x] Add read timeout behavior.
 - [x] Add write timeout behavior.
 - [x] Explore slow-client behavior.
-- [ ] Add graceful shutdown.
-- [ ] Confirm goroutines exit as expected.
+- [x] Add graceful shutdown.
+- [x] Confirm goroutines exit as expected.
 
 Questions to answer:
 
@@ -220,3 +220,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added basic HTTP/1.1 keep-alive and `Connection: close` handling.
 - Added tests for keep-alive idle read timeout and blocked response write
   timeout.
+- Added graceful shutdown with a bounded wait before force-closing active
+  connections.

@@ -1,9 +1,8 @@
 # TCP Connection Lifecycle
 
-This note documents the lifecycle of the current raw TCP echo server.
-
-The server does not speak HTTP yet. It only accepts TCP connections, reads bytes,
-and writes the same bytes back to the client.
+This note documents the lifecycle of the TCP server layer. The default
+connection handler is still a raw echo loop, but the command-line server now
+plugs an HTTP/1.x handler into the same TCP lifecycle.
 
 ## Server Lifecycle
 
@@ -27,14 +26,15 @@ server reacts by closing the listener.
 context canceled
   -> shutdown runs once
   -> listener.Close()
-  -> close active connections
+  -> wait for active connections
+  -> close remaining active connections after the graceful timeout
   -> blocked Accept returns an error
   -> wait for connection goroutines
   -> Serve returns nil
 ```
 
 Closing the listener stops accepting new connections. The server also tracks
-accepted connections and closes them during shutdown.
+accepted connections so shutdown can wait for them or force close them.
 
 ## Connection Lifecycle
 
@@ -94,15 +94,17 @@ defer conn.Close()
 
 ## Shutdown Behavior
 
-The server now separates two shutdown actions:
+The server now separates three shutdown actions:
 
 - Close the listener so no new connections can be accepted.
-- Close active connections so blocked `Read` or `Write` calls can return.
+- Mark the server as shutting down and wait for active connection goroutines to
+  finish naturally.
+- Close remaining active connections after the graceful timeout so blocked
+  `Read` or `Write` calls can return.
 
-After closing active connections, `Serve` waits for connection goroutines to
-finish. This is the first step toward graceful shutdown. A more complete server
-would usually distinguish between graceful draining and forceful connection
-closure.
+This means shutdown has a graceful phase and a forceful phase. During the
+graceful phase, existing connections may finish their current work. During the
+forceful phase, the server closes any connection that is still active.
 
 The shutdown cleanup is guarded by `sync.Once` because shutdown can be triggered
 from more than one path. For example, the context watcher may close the listener
@@ -119,3 +121,5 @@ Only one of those paths should perform the actual close operations.
 - Deadlines are used to prevent a connection goroutine from blocking forever.
 - Closing a listener and closing a connection are different operations.
 - Shutdown needs to consider both the listener and already accepted connections.
+- Graceful shutdown is a bounded wait; forceful close is still needed for stuck
+  or slow connections.

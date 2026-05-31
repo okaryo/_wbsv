@@ -57,3 +57,13 @@ HTTP/1.0 keep-alive is not implemented yet.
 
 For keep-alive connections, the read deadline is refreshed before each request.
 This means an idle connection cannot wait forever between requests.
+
+## Shutdown Behavior
+
+The TCP server stops accepting new connections when the root context is
+canceled. Existing HTTP connections are allowed to finish during the configured
+graceful shutdown timeout.
+
+If a connection is still active after that timeout, the server closes it. This
+unblocks handlers that are waiting in `Read` or `Write`, then `Serve` waits for
+the connection goroutines to exit.

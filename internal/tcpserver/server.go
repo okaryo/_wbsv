@@ -17,11 +17,12 @@ type ConnHandler func(net.Conn)
 
 // Server accepts raw TCP connections and handles each connection in a goroutine.
 type Server struct {
-	Addr         string
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	Logger       *log.Logger
-	ConnHandler  ConnHandler
+	Addr            string
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	GracefulTimeout time.Duration
+	Logger          *log.Logger
+	ConnHandler     ConnHandler
 
 	mu           sync.Mutex
 	activeConns  map[net.Conn]struct{}
@@ -46,15 +47,19 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	var shutdownOnce sync.Once
 	shutdown := func() {
 		shutdownOnce.Do(func() {
+			s.beginShutdown()
 			_ = listener.Close()
+
+			if s.waitForConns(s.GracefulTimeout) {
+				return
+			}
+
 			s.closeActiveConns()
+			s.wg.Wait()
 		})
 	}
 
-	defer func() {
-		shutdown()
-		s.wg.Wait()
-	}()
+	defer shutdown()
 
 	done := make(chan struct{})
 	defer close(done)
@@ -175,6 +180,39 @@ func (s *Server) untrackConn(conn net.Conn) {
 	s.mu.Unlock()
 
 	s.wg.Done()
+}
+
+func (s *Server) beginShutdown() {
+	s.mu.Lock()
+	s.shuttingDown = true
+	s.mu.Unlock()
+}
+
+func (s *Server) waitForConns(timeout time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	if timeout <= 0 {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+		return true
+	case <-timer.C:
+		return false
+	}
 }
 
 func (s *Server) closeActiveConns() {

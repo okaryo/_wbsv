@@ -163,6 +163,121 @@ func TestServerClosesActiveConnectionsOnShutdown(t *testing.T) {
 	}
 }
 
+func TestServerWaitsForActiveConnectionDuringGracefulShutdown(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := &Server{
+		GracefulTimeout: time.Second,
+		Logger:          log.New(io.Discard, "", 0),
+		ConnHandler: func(net.Conn) {
+			close(started)
+			<-release
+		},
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start")
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("server returned before active connection finished: %v", err)
+	case <-time.After(30 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after active connection finished")
+	}
+}
+
+func TestServerForceClosesActiveConnectionAfterGracefulTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	started := make(chan struct{})
+	readDone := make(chan struct{})
+	server := &Server{
+		GracefulTimeout: 20 * time.Millisecond,
+		Logger:          log.New(io.Discard, "", 0),
+		ConnHandler: func(conn net.Conn) {
+			close(started)
+			_, _ = conn.Read(make([]byte, 1))
+			close(readDone)
+		},
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start")
+	}
+
+	cancel()
+
+	select {
+	case <-readDone:
+	case <-time.After(time.Second):
+		t.Fatal("blocked connection was not force closed")
+	}
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop after force closing active connection")
+	}
+}
+
 func TestServerClosesListenerOnceOnShutdown(t *testing.T) {
 	t.Parallel()
 
