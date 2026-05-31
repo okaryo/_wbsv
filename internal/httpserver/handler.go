@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net"
@@ -27,7 +28,7 @@ type Handler struct {
 }
 
 // ServeConn handles HTTP/1.x requests until the connection should close.
-func (h *Handler) ServeConn(conn net.Conn) {
+func (h *Handler) ServeConn(ctx context.Context, conn net.Conn) {
 	reader := http1.NewLineReader(conn, h.maxLine())
 
 	for {
@@ -44,7 +45,7 @@ func (h *Handler) ServeConn(conn net.Conn) {
 			MaxBody:    h.maxBody(),
 		})
 
-		response, closeAfterResponse := h.responseForRequest(request, err)
+		response, closeAfterResponse := h.responseForRequest(ctx, request, err)
 		if closeAfterResponse {
 			response.Headers = append(response.Headers, http1.HeaderField{Name: "Connection", Value: "close"})
 		}
@@ -68,7 +69,7 @@ func (h *Handler) ServeConn(conn net.Conn) {
 	}
 }
 
-func (h *Handler) responseForRequest(request http1.Request, err error) (http1.Response, bool) {
+func (h *Handler) responseForRequest(ctx context.Context, request http1.Request, err error) (http1.Response, bool) {
 	if err != nil {
 		h.logf("request parse error: %v", err)
 
@@ -86,7 +87,10 @@ func (h *Handler) responseForRequest(request http1.Request, err error) (http1.Re
 	}
 
 	closeAfterResponse := shouldCloseConnection(request)
-	return h.appHandler().ServeHTTP(request), closeAfterResponse
+	return h.appHandler().ServeHTTP(Request{
+		Context: ctx,
+		HTTP:    request,
+	}), closeAfterResponse
 }
 
 func shouldCloseConnection(request http1.Request) bool {

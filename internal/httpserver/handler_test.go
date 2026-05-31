@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"io"
 	"log"
 	"net"
@@ -69,11 +70,11 @@ func TestHandlerUsesApplicationHandler(t *testing.T) {
 			ReadTimeout:  time.Second,
 			WriteTimeout: time.Second,
 			Logger:       log.New(io.Discard, "", 0),
-			App: AppHandlerFunc(func(request http1.Request) http1.Response {
+			App: AppHandlerFunc(func(request Request) http1.Response {
 				return http1.Response{
 					StatusCode: 201,
 					Headers: []http1.HeaderField{
-						{Name: "X-App-Target", Value: request.RequestLine.RequestTarget},
+						{Name: "X-App-Target", Value: request.HTTP.RequestLine.RequestTarget},
 					},
 					Body: []byte("created\n"),
 				}
@@ -94,6 +95,48 @@ func TestHandlerUsesApplicationHandler(t *testing.T) {
 		"created\n"
 	if response != want {
 		t.Fatalf("response = %q, want %q", response, want)
+	}
+}
+
+func TestHandlerPassesContextToApplicationHandler(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	seenDone := make(chan struct{})
+
+	response := serveWithContextAndHandler(t,
+		ctx,
+		&Handler{
+			ReadTimeout:  time.Second,
+			WriteTimeout: time.Second,
+			Logger:       log.New(io.Discard, "", 0),
+			App: AppHandlerFunc(func(request Request) http1.Response {
+				cancel()
+				select {
+				case <-request.Context.Done():
+					close(seenDone)
+				case <-time.After(time.Second):
+				}
+
+				return http1.Response{
+					StatusCode: 200,
+					Body:       []byte("context observed\n"),
+				}
+			}),
+		},
+		"GET /context HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
+			"\r\n",
+	)
+
+	select {
+	case <-seenDone:
+	default:
+		t.Fatal("application handler did not observe request context cancellation")
+	}
+	if !strings.Contains(response, "context observed\n") {
+		t.Fatalf("response = %q, want context response body", response)
 	}
 }
 
@@ -126,7 +169,7 @@ func TestHandlerReturnsRequestTimeout(t *testing.T) {
 	go func() {
 		defer close(done)
 		defer serverConn.Close()
-		handler.ServeConn(serverConn)
+		handler.ServeConn(context.Background(), serverConn)
 	}()
 
 	if err := clientConn.SetDeadline(time.Now().Add(time.Second)); err != nil {
@@ -187,7 +230,7 @@ func TestHandlerReturnsWhenResponseWriteTimesOut(t *testing.T) {
 	go func() {
 		defer close(done)
 		defer serverConn.Close()
-		handler.ServeConn(serverConn)
+		handler.ServeConn(context.Background(), serverConn)
 	}()
 
 	if err := clientConn.SetDeadline(time.Now().Add(time.Second)); err != nil {
@@ -224,6 +267,12 @@ func serveWithPipe(t *testing.T, request string) string {
 func serveWithHandler(t *testing.T, handler *Handler, request string) string {
 	t.Helper()
 
+	return serveWithContextAndHandler(t, context.Background(), handler, request)
+}
+
+func serveWithContextAndHandler(t *testing.T, ctx context.Context, handler *Handler, request string) string {
+	t.Helper()
+
 	serverConn, clientConn := net.Pipe()
 	defer clientConn.Close()
 
@@ -231,7 +280,7 @@ func serveWithHandler(t *testing.T, handler *Handler, request string) string {
 	go func() {
 		defer close(done)
 		defer serverConn.Close()
-		handler.ServeConn(serverConn)
+		handler.ServeConn(ctx, serverConn)
 	}()
 
 	if err := clientConn.SetDeadline(time.Now().Add(time.Second)); err != nil {

@@ -13,7 +13,7 @@ import (
 const bufferSize = 4096
 
 // ConnHandler handles one accepted TCP connection.
-type ConnHandler func(net.Conn)
+type ConnHandler func(context.Context, net.Conn)
 
 // Server accepts raw TCP connections and handles each connection in a goroutine.
 type Server struct {
@@ -89,19 +89,21 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 			return nil
 		}
 
+		connCtx, cancelConn := context.WithCancel(ctx)
 		go func() {
+			defer cancelConn()
 			defer s.untrackConn(conn)
-			s.handleConn(conn)
+			s.handleConn(connCtx, conn)
 		}()
 	}
 }
 
-func (s *Server) handleConn(conn net.Conn) {
+func (s *Server) handleConn(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 
 	s.logf("accepted connection from %s", conn.RemoteAddr())
 	if s.ConnHandler != nil {
-		s.ConnHandler(conn)
+		s.ConnHandler(ctx, conn)
 		return
 	}
 

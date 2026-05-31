@@ -8,6 +8,7 @@ The current runtime flow is:
 TCP listener
   -> Accept
   -> connection goroutine
+  -> connection context
   -> HTTP request parser
   -> application handler
   -> HTTP response writer
@@ -68,3 +69,7 @@ graceful shutdown timeout.
 If a connection is still active after that timeout, the server closes it. This
 unblocks handlers that are waiting in `Read` or `Write`, then `Serve` waits for
 the connection goroutines to exit.
+
+The same root shutdown signal also cancels the connection context passed to the
+HTTP server. Application handlers receive that context through
+`httpserver.Request`.

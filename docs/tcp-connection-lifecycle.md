@@ -44,7 +44,8 @@ Each accepted connection is handled in its own goroutine.
 listener.Accept()
   -> net.Conn
   -> track active connection
-  -> go handleConn(conn)
+  -> create connection context
+  -> go handleConn(ctx, conn)
 ```
 
 Inside `handleConn`, the current lifecycle is:
@@ -105,6 +106,11 @@ The server now separates three shutdown actions:
 This means shutdown has a graceful phase and a forceful phase. During the
 graceful phase, existing connections may finish their current work. During the
 forceful phase, the server closes any connection that is still active.
+
+Each accepted connection also receives a context derived from the server context.
+Canceling the server context notifies the connection handler through
+`ctx.Done()`, but it does not automatically stop the handler. The handler must
+observe the context or return because the connection was closed.
 
 The shutdown cleanup is guarded by `sync.Once` because shutdown can be triggered
 from more than one path. For example, the context watcher may close the listener
