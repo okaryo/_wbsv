@@ -111,6 +111,8 @@ func StatusText(code int) string {
 		return "Not Found"
 	case 405:
 		return "Method Not Allowed"
+	case 408:
+		return "Request Timeout"
 	case 411:
 		return "Length Required"
 	case 413:

@@ -12,12 +12,16 @@ import (
 
 const bufferSize = 4096
 
-// Server accepts raw TCP connections and echoes received bytes back to clients.
+// ConnHandler handles one accepted TCP connection.
+type ConnHandler func(net.Conn)
+
+// Server accepts raw TCP connections and handles each connection in a goroutine.
 type Server struct {
 	Addr         string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 	Logger       *log.Logger
+	ConnHandler  ConnHandler
 
 	mu           sync.Mutex
 	activeConns  map[net.Conn]struct{}
@@ -91,6 +95,10 @@ func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	s.logf("accepted connection from %s", conn.RemoteAddr())
+	if s.ConnHandler != nil {
+		s.ConnHandler(conn)
+		return
+	}
 
 	buf := make([]byte, bufferSize)
 	for {

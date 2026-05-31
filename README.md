@@ -77,7 +77,7 @@ than treated as fixed.
 
 ## Running the Current Server
 
-The current implementation is a raw TCP echo server. It does not speak HTTP yet.
+The current implementation is a minimal HTTP/1.x server.
 
 Start the server:
 
@@ -92,20 +92,20 @@ timeout. The default timeout is 30 seconds. To make it easier to observe:
 go run ./cmd/wbsv --read-timeout 5s
 ```
 
-The server also sets a write timeout before echoing bytes back to the client:
+The server also sets a write timeout before writing the HTTP response:
 
 ```sh
 go run ./cmd/wbsv --write-timeout 5s
 ```
 
-Send bytes from another terminal:
+Send a request from another terminal:
 
 ```sh
-nc 127.0.0.1 8080
+curl -i http://127.0.0.1:8080/hello
 ```
 
-Whatever bytes the client sends are written back by the server. This first step
-is intentionally simple so the TCP connection lifecycle is easy to inspect.
+The server parses one request, writes one fixed response, and closes the
+connection. Keep-alive is not implemented yet.
 
 ## Observing Blocking Behavior
 
@@ -122,23 +122,30 @@ it is blocked in `listener.Accept()` until a client connects.
 After a client connects, the server prints:
 
 ```text
-waiting for bytes from 127.0.0.1:xxxxx
+waiting for HTTP request from 127.0.0.1:xxxxx
 ```
 
-At that point, the connection goroutine is blocked in `conn.Read()` until the
-client sends bytes or closes the connection.
+At that point, the connection goroutine is blocked while the HTTP parser reads
+request bytes from the connection.
 
 Try this sequence:
 
 1. Start the server with `go run ./cmd/wbsv`.
 2. Connect with `nc 127.0.0.1 8080`, but do not type anything yet.
-3. Observe that the server accepted the connection and is now waiting for bytes.
-4. Type a line in `nc` and press enter.
-5. Observe the read and write logs.
+3. Observe that the server accepted the connection and is now waiting for an HTTP request.
+4. Type a minimal HTTP request in `nc`.
+5. Observe the response and request handling logs.
 6. Stop `nc` and observe the connection close log.
 
+Example request for `nc`:
+
+```sh
+printf 'GET /hello HTTP/1.1\r\nHost: localhost\r\n\r\n' | nc 127.0.0.1 8080
+```
+
 To observe a read timeout, connect with `nc` and do not type anything until the
-timeout expires. The server should log `read timeout` and close that connection.
+timeout expires. The server should return `408 Request Timeout` and close that
+connection.
 
 ## Project Documents
 
@@ -156,3 +163,4 @@ timeout expires. The server should log `read timeout` and close that connection.
 - `docs/http-content-type.md`: notes on response MIME type helpers.
 - `docs/http-error-response.md`: notes on basic HTTP error responses.
 - `docs/http-net-http-comparison.md`: notes comparing selected behavior with Go's `net/http`.
+- `docs/http-server-integration.md`: notes on connecting the HTTP parser and writer to TCP.

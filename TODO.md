@@ -92,6 +92,7 @@ Questions to answer:
 
 ### 4. Connection Management
 
+- [x] Handle one HTTP request per TCP connection.
 - [ ] Implement basic HTTP/1.1 keep-alive behavior.
 - [ ] Support `Connection: close`.
 - [ ] Add read timeout behavior.
@@ -214,3 +215,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added basic plain-text HTTP error responses.
 - Compared response body rules with `net/http` and suppressed body output for
   `1xx`, `204`, and `304` responses.
+- Connected the HTTP parser and response writer to the TCP server. The runtime
+  now handles one HTTP request per connection.
