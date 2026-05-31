@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/okaryo/_wbsv/internal/http1"
 )
 
 func TestHandlerServesOneHTTPRequest(t *testing.T) {
@@ -70,14 +68,10 @@ func TestHandlerUsesApplicationHandler(t *testing.T) {
 			ReadTimeout:  time.Second,
 			WriteTimeout: time.Second,
 			Logger:       log.New(io.Discard, "", 0),
-			App: AppHandlerFunc(func(request Request) http1.Response {
-				return http1.Response{
-					StatusCode: 201,
-					Headers: []http1.HeaderField{
-						{Name: "X-App-Target", Value: request.HTTP.RequestLine.RequestTarget},
-					},
-					Body: []byte("created\n"),
-				}
+			App: AppHandlerFunc(func(w ResponseWriter, request Request) {
+				w.AddHeader("X-App-Target", request.HTTP.RequestLine.RequestTarget)
+				w.WriteHeader(201)
+				_, _ = w.Write([]byte("created\n"))
 			}),
 		},
 		"POST /items HTTP/1.1\r\n"+
@@ -110,7 +104,7 @@ func TestHandlerPassesContextToApplicationHandler(t *testing.T) {
 			ReadTimeout:  time.Second,
 			WriteTimeout: time.Second,
 			Logger:       log.New(io.Discard, "", 0),
-			App: AppHandlerFunc(func(request Request) http1.Response {
+			App: AppHandlerFunc(func(w ResponseWriter, request Request) {
 				cancel()
 				select {
 				case <-request.Context.Done():
@@ -118,10 +112,7 @@ func TestHandlerPassesContextToApplicationHandler(t *testing.T) {
 				case <-time.After(time.Second):
 				}
 
-				return http1.Response{
-					StatusCode: 200,
-					Body:       []byte("context observed\n"),
-				}
+				_, _ = w.Write([]byte("context observed\n"))
 			}),
 		},
 		"GET /context HTTP/1.1\r\n"+

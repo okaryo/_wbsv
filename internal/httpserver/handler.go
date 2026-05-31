@@ -87,10 +87,12 @@ func (h *Handler) responseForRequest(ctx context.Context, request http1.Request,
 	}
 
 	closeAfterResponse := shouldCloseConnection(request)
-	return h.appHandler().ServeHTTP(Request{
+	writer := newBufferedResponseWriter()
+	h.appHandler().ServeHTTP(writer, Request{
 		Context: ctx,
 		HTTP:    request,
-	}), closeAfterResponse
+	})
+	return writer.Response(), closeAfterResponse
 }
 
 func shouldCloseConnection(request http1.Request) bool {
