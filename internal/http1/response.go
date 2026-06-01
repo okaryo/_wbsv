@@ -107,6 +107,8 @@ func StatusText(code int) string {
 		return "Not Modified"
 	case 400:
 		return "Bad Request"
+	case 401:
+		return "Unauthorized"
 	case 404:
 		return "Not Found"
 	case 405:

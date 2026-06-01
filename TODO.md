@@ -117,7 +117,9 @@ Questions to answer:
 - [x] Add logging middleware.
 - [x] Add recovery middleware.
 - [x] Add request ID middleware.
-- [ ] Explore auth, compression, and rate-limit middleware.
+- [x] Add bearer auth middleware.
+- [ ] Explore compression middleware.
+- [ ] Explore rate-limit middleware.
 
 Questions to answer:
 
@@ -236,3 +238,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   `500 Internal Server Error` responses.
 - Added request ID middleware that propagates `X-Request-ID` through response
   headers and request context.
+- Added bearer auth middleware that can stop unauthorized requests before the
+  application handler runs.

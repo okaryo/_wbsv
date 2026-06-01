@@ -21,11 +21,21 @@ func main() {
 	maxLine := flag.Int("max-line", 8192, "maximum HTTP line length")
 	maxHeaders := flag.Int("max-headers", 100, "maximum number of HTTP headers")
 	maxBody := flag.Int64("max-body", 1<<20, "maximum HTTP request body size")
+	authToken := flag.String("auth-token", "", "optional bearer token required for HTTP requests")
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "wbsv: ", log.LstdFlags|log.Lmicroseconds)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	middlewares := []httpserver.Middleware{
+		httpserver.RequestIDMiddleware(),
+		httpserver.LoggingMiddleware(logger),
+		httpserver.RecoveryMiddleware(logger),
+	}
+	if *authToken != "" {
+		middlewares = append(middlewares, httpserver.BearerAuthMiddleware(*authToken))
+	}
 
 	httpHandler := &httpserver.Handler{
 		ReadTimeout:  *readTimeout,
@@ -34,11 +44,7 @@ func main() {
 		MaxHeaders:   *maxHeaders,
 		MaxBody:      *maxBody,
 		Logger:       logger,
-		Middleware: []httpserver.Middleware{
-			httpserver.RequestIDMiddleware(),
-			httpserver.LoggingMiddleware(logger),
-			httpserver.RecoveryMiddleware(logger),
-		},
+		Middleware:   middlewares,
 	}
 
 	server := &tcpserver.Server{

@@ -165,12 +165,31 @@ The same value is also returned in the `X-Request-ID` response header. This is a
 common pattern for correlating server logs, client errors, and downstream
 operations.
 
+## Auth Middleware
+
+The bearer auth middleware checks the `Authorization` request header before the
+application handler runs.
+
+```text
+Authorization: Bearer <token>
+```
+
+If the token matches, the middleware calls the next handler. If the token is
+missing or wrong, the middleware writes a `401 Unauthorized` response and does
+not call the next handler.
+
+This demonstrates a different middleware shape from logging. Logging usually
+wraps the whole request and continues after `next.ServeHTTP`. Auth often decides
+whether `next.ServeHTTP` should run at all.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the
   connection.
 - Request contexts are connection-scoped rather than independently scoped per
   request.
+- Bearer auth uses one static token and does not model users, sessions, scopes,
+  or token expiry.
 - Recovery can reset buffered responses, but this behavior will need revisiting
   when response writing becomes streaming.
 

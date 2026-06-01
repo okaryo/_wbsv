@@ -198,3 +198,11 @@ func TestErrorResponseUsesStatusTextWhenMessageIsEmpty(t *testing.T) {
 		t.Fatalf("header = %#v, want text/plain Content-Type", response.Headers[0])
 	}
 }
+
+func TestStatusTextIncludesUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	if got := StatusText(401); got != "Unauthorized" {
+		t.Fatalf("StatusText(401) = %q, want Unauthorized", got)
+	}
+}
