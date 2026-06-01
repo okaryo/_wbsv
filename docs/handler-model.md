@@ -18,6 +18,8 @@ type ResponseWriter interface {
 	WriteHeader(statusCode int)
 	Write([]byte) (int, error)
 }
+
+type Middleware func(AppHandler) AppHandler
 ```
 
 This separates two responsibilities:
@@ -73,13 +75,41 @@ Only the first `WriteHeader` call changes the status code.
 This model explains the shape of `net/http.ResponseWriter`, but it is not fully
 streaming yet.
 
+## Middleware Chain
+
+Middleware wraps an `AppHandler` and returns another `AppHandler`.
+
+```go
+middleware := func(next httpserver.AppHandler) httpserver.AppHandler {
+	return httpserver.AppHandlerFunc(func(w httpserver.ResponseWriter, request httpserver.Request) {
+		w.AddHeader("X-Before", "middleware")
+		next.ServeHTTP(w, request)
+		w.AddHeader("X-After", "middleware")
+	})
+}
+```
+
+`Chain(app, first, second)` executes request-side behavior in registration
+order:
+
+```text
+first before
+  -> second before
+    -> app
+  -> second after
+first after
+```
+
+This shape is useful for logging, authentication, recovery, request IDs,
+compression, and rate limiting because those features can be added around the
+application handler without changing the handler itself.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the
   connection.
 - Request contexts are connection-scoped rather than independently scoped per
   request.
-- Middleware is not implemented yet.
 - Panics in application handlers are not recovered yet.
 
 Those limitations are intentional next steps. They show why production Web

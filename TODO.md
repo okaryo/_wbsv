@@ -113,7 +113,7 @@ Questions to answer:
 - [x] Define a minimal handler interface.
 - [x] Add a request context model.
 - [x] Add a response writer abstraction.
-- [ ] Implement middleware chaining.
+- [x] Implement middleware chaining.
 - [ ] Add logging middleware.
 - [ ] Add recovery middleware.
 - [ ] Add request ID middleware.
@@ -228,3 +228,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   shutdown and cancellation.
 - Added a buffered response writer abstraction so application handlers can build
   responses without returning `http1.Response` values directly.
+- Added middleware chaining with `func(AppHandler) AppHandler` so cross-cutting
+  behavior can wrap application handlers.

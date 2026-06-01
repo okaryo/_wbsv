@@ -131,6 +131,45 @@ func TestHandlerPassesContextToApplicationHandler(t *testing.T) {
 	}
 }
 
+func TestHandlerRunsMiddleware(t *testing.T) {
+	t.Parallel()
+
+	response := serveWithHandler(t,
+		&Handler{
+			ReadTimeout:  time.Second,
+			WriteTimeout: time.Second,
+			Logger:       log.New(io.Discard, "", 0),
+			App: AppHandlerFunc(func(w ResponseWriter, request Request) {
+				w.AddHeader("X-App", "handler")
+				_, _ = w.Write([]byte("ok\n"))
+			}),
+			Middleware: []Middleware{
+				func(next AppHandler) AppHandler {
+					return AppHandlerFunc(func(w ResponseWriter, request Request) {
+						w.AddHeader("X-Before", "middleware")
+						next.ServeHTTP(w, request)
+						w.AddHeader("X-After", "middleware")
+					})
+				},
+			},
+		},
+		"GET /middleware HTTP/1.1\r\n"+
+			"Host: localhost\r\n"+
+			"Connection: close\r\n"+
+			"\r\n",
+	)
+
+	if !strings.Contains(response, "X-Before: middleware\r\n") {
+		t.Fatalf("response = %q, want middleware before header", response)
+	}
+	if !strings.Contains(response, "X-App: handler\r\n") {
+		t.Fatalf("response = %q, want application header", response)
+	}
+	if !strings.Contains(response, "X-After: middleware\r\n") {
+		t.Fatalf("response = %q, want middleware after header", response)
+	}
+}
+
 func TestHandlerReturnsBadRequestForMalformedRequest(t *testing.T) {
 	t.Parallel()
 

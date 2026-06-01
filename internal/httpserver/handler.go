@@ -25,6 +25,7 @@ type Handler struct {
 	MaxBody      int64
 	Logger       *log.Logger
 	App          AppHandler
+	Middleware   []Middleware
 }
 
 // ServeConn handles HTTP/1.x requests until the connection should close.
@@ -124,10 +125,7 @@ func (h *Handler) maxBody() int64 {
 }
 
 func (h *Handler) appHandler() AppHandler {
-	if h.App != nil {
-		return h.App
-	}
-	return defaultAppHandler
+	return Chain(h.App, h.Middleware...)
 }
 
 func (h *Handler) logf(format string, args ...any) {
