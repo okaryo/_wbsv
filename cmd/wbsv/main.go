@@ -34,6 +34,9 @@ func main() {
 		MaxHeaders:   *maxHeaders,
 		MaxBody:      *maxBody,
 		Logger:       logger,
+		Middleware: []httpserver.Middleware{
+			httpserver.LoggingMiddleware(logger),
+		},
 	}
 
 	server := &tcpserver.Server{

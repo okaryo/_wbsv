@@ -104,6 +104,22 @@ This shape is useful for logging, authentication, recovery, request IDs,
 compression, and rate limiting because those features can be added around the
 application handler without changing the handler itself.
 
+## Logging Middleware
+
+The logging middleware wraps the response writer so it can observe the status
+code and number of body bytes written by the application handler.
+
+```text
+request
+  -> logging middleware starts timer
+  -> application handler writes response
+  -> logging middleware records method, target, status, bytes, duration
+```
+
+This is a common middleware pattern. The middleware does not need to know how the
+server writes bytes to the TCP connection. It only watches the handler-facing
+`ResponseWriter`.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the

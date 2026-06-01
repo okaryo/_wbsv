@@ -114,7 +114,7 @@ Questions to answer:
 - [x] Add a request context model.
 - [x] Add a response writer abstraction.
 - [x] Implement middleware chaining.
-- [ ] Add logging middleware.
+- [x] Add logging middleware.
 - [ ] Add recovery middleware.
 - [ ] Add request ID middleware.
 - [ ] Explore auth, compression, and rate-limit middleware.
@@ -230,3 +230,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   responses without returning `http1.Response` values directly.
 - Added middleware chaining with `func(AppHandler) AppHandler` so cross-cutting
   behavior can wrap application handlers.
+- Added logging middleware that records method, target, status, response bytes,
+  and duration after application handling.
