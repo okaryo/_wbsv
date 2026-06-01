@@ -61,3 +61,11 @@ func (w *loggingResponseWriter) StatusCode() int {
 func (w *loggingResponseWriter) BytesWritten() int {
 	return w.bytesWritten
 }
+
+func (w *loggingResponseWriter) reset() {
+	if resetter, ok := w.ResponseWriter.(interface{ reset() }); ok {
+		resetter.reset()
+	}
+	w.statusCode = 0
+	w.bytesWritten = 0
+}

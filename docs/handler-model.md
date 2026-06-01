@@ -120,13 +120,36 @@ This is a common middleware pattern. The middleware does not need to know how th
 server writes bytes to the TCP connection. It only watches the handler-facing
 `ResponseWriter`.
 
+## Recovery Middleware
+
+The recovery middleware uses `defer` and `recover` to catch panics from the
+application handler.
+
+```text
+request
+  -> recovery middleware installs deferred recover
+  -> application handler panics
+  -> deferred recover catches the panic
+  -> response buffer is reset
+  -> 500 Internal Server Error response is written
+```
+
+Because the current response writer is buffered, recovery can replace a partial
+response before it is serialized to the TCP connection. A streaming response
+writer would have a harder constraint: once headers or body bytes are sent, a
+clean 500 response may no longer be possible.
+
+Middleware order matters. `LoggingMiddleware` should wrap
+`RecoveryMiddleware` if logs should record the recovered `500` response.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the
   connection.
 - Request contexts are connection-scoped rather than independently scoped per
   request.
-- Panics in application handlers are not recovered yet.
+- Recovery can reset buffered responses, but this behavior will need revisiting
+  when response writing becomes streaming.
 
 Those limitations are intentional next steps. They show why production Web
 servers usually expose a request context and a response writer abstraction.

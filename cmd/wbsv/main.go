@@ -36,6 +36,7 @@ func main() {
 		Logger:       logger,
 		Middleware: []httpserver.Middleware{
 			httpserver.LoggingMiddleware(logger),
+			httpserver.RecoveryMiddleware(logger),
 		},
 	}
 

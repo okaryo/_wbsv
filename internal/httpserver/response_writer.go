@@ -66,3 +66,9 @@ func (w *bufferedResponseWriter) Response() http1.Response {
 		Body:       append([]byte(nil), w.body...),
 	}
 }
+
+func (w *bufferedResponseWriter) reset() {
+	w.statusCode = 0
+	w.headers = nil
+	w.body = nil
+}

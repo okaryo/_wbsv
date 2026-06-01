@@ -115,7 +115,7 @@ Questions to answer:
 - [x] Add a response writer abstraction.
 - [x] Implement middleware chaining.
 - [x] Add logging middleware.
-- [ ] Add recovery middleware.
+- [x] Add recovery middleware.
 - [ ] Add request ID middleware.
 - [ ] Explore auth, compression, and rate-limit middleware.
 
@@ -232,3 +232,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   behavior can wrap application handlers.
 - Added logging middleware that records method, target, status, response bytes,
   and duration after application handling.
+- Added recovery middleware that converts application panics into buffered
+  `500 Internal Server Error` responses.
