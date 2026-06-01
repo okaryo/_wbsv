@@ -142,6 +142,29 @@ clean 500 response may no longer be possible.
 Middleware order matters. `LoggingMiddleware` should wrap
 `RecoveryMiddleware` if logs should record the recovered `500` response.
 
+## Request ID Middleware
+
+The request ID middleware attaches an ID to both the request context and the
+response headers.
+
+```text
+incoming X-Request-ID exists
+  -> reuse it
+
+incoming X-Request-ID missing
+  -> generate a new ID
+```
+
+Application code can read the value from the context:
+
+```go
+requestID, ok := httpserver.RequestIDFromContext(request.Context)
+```
+
+The same value is also returned in the `X-Request-ID` response header. This is a
+common pattern for correlating server logs, client errors, and downstream
+operations.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the

@@ -116,7 +116,7 @@ Questions to answer:
 - [x] Implement middleware chaining.
 - [x] Add logging middleware.
 - [x] Add recovery middleware.
-- [ ] Add request ID middleware.
+- [x] Add request ID middleware.
 - [ ] Explore auth, compression, and rate-limit middleware.
 
 Questions to answer:
@@ -234,3 +234,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   and duration after application handling.
 - Added recovery middleware that converts application panics into buffered
   `500 Internal Server Error` responses.
+- Added request ID middleware that propagates `X-Request-ID` through response
+  headers and request context.

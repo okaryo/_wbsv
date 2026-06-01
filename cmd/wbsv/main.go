@@ -35,6 +35,7 @@ func main() {
 		MaxBody:      *maxBody,
 		Logger:       logger,
 		Middleware: []httpserver.Middleware{
+			httpserver.RequestIDMiddleware(),
 			httpserver.LoggingMiddleware(logger),
 			httpserver.RecoveryMiddleware(logger),
 		},
