@@ -1,42 +1,47 @@
 # Router
 
-The first router implementation performs static path matching.
+The router now performs static path and method matching.
 
 ```text
 request target: /hello?name=wbsv
 route path:     /hello
 ```
 
-The router strips the query string before matching. It then looks up the path in
-a map:
+The router strips the query string before matching. It then looks up the path and
+method in nested maps:
 
 ```go
-routes map[string]AppHandler
+routes map[string]map[string]AppHandler
 ```
 
-This is the simplest useful router shape:
+The current matching shape is:
 
 ```text
 request path
   -> map lookup
-  -> handler
+  -> request method
+    -> map lookup
+    -> handler
 ```
 
-If no route matches, the router writes a `404 Not Found` response.
+If no path matches, the router writes a `404 Not Found` response. If the path
+exists but the method does not match, the router writes a
+`405 Method Not Allowed` response with an `Allow` header.
 
 ## Current Scope
 
-The router does not inspect the HTTP method yet. This means `GET /hello` and
-`POST /hello` currently match the same route.
+`Handle(path, handler)` still registers an any-method route. This keeps static
+path matching available while method-specific routes are introduced with
+`HandleMethod(method, path, handler)`.
 
-That limitation is intentional. It keeps this step focused on static path
-matching before introducing method matching and route priority.
+Exact method routes take priority over any-method routes for the same path.
 
 ## Key Takeaways
 
 - A router is an application handler that dispatches to other handlers.
-- Static path matching can be implemented with a map lookup.
+- Static path and method matching can be implemented with nested map lookups.
 - The request target may contain a query string, but route matching usually
   uses only the path.
+- A known path with an unsupported method should return `405`, not `404`.
 - More advanced routers need more structure when path parameters, wildcards,
   and priorities are introduced.

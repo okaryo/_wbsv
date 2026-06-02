@@ -130,7 +130,7 @@ Questions to answer:
 ### 6. Router Internals
 
 - [x] Implement static route matching.
-- [ ] Add method matching.
+- [x] Add method matching.
 - [ ] Add path parameters.
 - [ ] Add wildcard routes.
 - [ ] Implement route priority rules.
@@ -246,3 +246,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   without calling the application handler when the global limit is exceeded.
 - Added a static path router that dispatches exact route paths to application
   handlers and returns `404 Not Found` for misses.
+- Added method-aware routing so exact method routes can dispatch separately and
+  known paths with unsupported methods return `405 Method Not Allowed`.
