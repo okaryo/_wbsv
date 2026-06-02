@@ -16,7 +16,8 @@ const anyMethod = ""
 
 // Router matches static request paths to application handlers.
 type Router struct {
-	routes map[string]map[string]AppHandler
+	routes      map[string]map[string]AppHandler
+	paramRoutes []paramRoute
 }
 
 // NewRouter creates an empty static-path router.
@@ -43,6 +44,10 @@ func (r *Router) HandleMethod(method string, path string, handler AppHandler) er
 	if handler == nil {
 		return ErrMissingHandler
 	}
+	if hasPathParams(path) {
+		return r.handleParamRoute(method, path, handler)
+	}
+
 	if r.routes[path] == nil {
 		r.routes[path] = make(map[string]AppHandler)
 	}
@@ -70,27 +75,65 @@ func (r *Router) HandleMethodFunc(method string, path string, handler func(Respo
 func (r *Router) ServeHTTP(w ResponseWriter, request Request) {
 	targetPath := routePath(request.HTTP.RequestLine.RequestTarget)
 	methodRoutes := r.routes[targetPath]
-	if methodRoutes == nil {
-		w.SetHeader("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(404)
-		_, _ = w.Write([]byte("not found\n"))
+	if methodRoutes != nil {
+		if dispatchMethod(w, request, methodRoutes, nil, true) {
+			return
+		}
 		return
 	}
 
+	allowed := make(map[string]AppHandler)
+	for _, route := range r.paramRoutes {
+		params, ok := route.match(targetPath)
+		if !ok {
+			continue
+		}
+
+		if dispatchMethod(w, request, route.methodRoutes, params, false) {
+			return
+		}
+		for method, handler := range route.methodRoutes {
+			allowed[method] = handler
+		}
+	}
+
+	if len(allowed) > 0 {
+		writeMethodNotAllowed(w, allowed)
+		return
+	}
+
+	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(404)
+	_, _ = w.Write([]byte("not found\n"))
+}
+
+func dispatchMethod(w ResponseWriter, request Request, methodRoutes map[string]AppHandler, params map[string]string, writeFailure bool) bool {
 	method := strings.ToUpper(request.HTTP.RequestLine.Method)
 	handler := methodRoutes[method]
 	if handler == nil {
 		handler = methodRoutes[anyMethod]
 	}
 	if handler == nil {
-		w.SetHeader("Allow", allowedMethods(methodRoutes))
-		w.SetHeader("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(405)
-		_, _ = w.Write([]byte("method not allowed\n"))
-		return
+		if writeFailure {
+			writeMethodNotAllowed(w, methodRoutes)
+			return true
+		}
+		return false
+	}
+
+	if params != nil {
+		request.Params = params
 	}
 
 	handler.ServeHTTP(w, request)
+	return true
+}
+
+func writeMethodNotAllowed(w ResponseWriter, methodRoutes map[string]AppHandler) {
+	w.SetHeader("Allow", allowedMethods(methodRoutes))
+	w.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(405)
+	_, _ = w.Write([]byte("method not allowed\n"))
 }
 
 func routePath(target string) string {
@@ -114,4 +157,98 @@ func allowedMethods(methodRoutes map[string]AppHandler) string {
 	}
 	sort.Strings(methods)
 	return strings.Join(methods, ", ")
+}
+
+func (r *Router) handleParamRoute(method string, path string, handler AppHandler) error {
+	segments, err := parseRouteSegments(path)
+	if err != nil {
+		return err
+	}
+
+	for i := range r.paramRoutes {
+		if r.paramRoutes[i].pattern == path {
+			r.paramRoutes[i].methodRoutes[method] = handler
+			return nil
+		}
+	}
+
+	r.paramRoutes = append(r.paramRoutes, paramRoute{
+		pattern:      path,
+		segments:     segments,
+		methodRoutes: map[string]AppHandler{method: handler},
+	})
+	return nil
+}
+
+type paramRoute struct {
+	pattern      string
+	segments     []routeSegment
+	methodRoutes map[string]AppHandler
+}
+
+func (r paramRoute) match(path string) (map[string]string, bool) {
+	pathSegments := splitPath(path)
+	if len(pathSegments) != len(r.segments) {
+		return nil, false
+	}
+
+	params := make(map[string]string)
+	for i, routeSegment := range r.segments {
+		pathSegment := pathSegments[i]
+		if routeSegment.paramName != "" {
+			params[routeSegment.paramName] = pathSegment
+			continue
+		}
+		if routeSegment.literal != pathSegment {
+			return nil, false
+		}
+	}
+
+	return params, true
+}
+
+type routeSegment struct {
+	literal   string
+	paramName string
+}
+
+func parseRouteSegments(path string) ([]routeSegment, error) {
+	rawSegments := splitPath(path)
+	segments := make([]routeSegment, 0, len(rawSegments))
+	seenParams := make(map[string]struct{})
+
+	for _, rawSegment := range rawSegments {
+		if strings.HasPrefix(rawSegment, ":") {
+			name := strings.TrimPrefix(rawSegment, ":")
+			if name == "" || strings.ContainsAny(name, " \t\r\n") {
+				return nil, ErrInvalidRoutePath
+			}
+			if _, ok := seenParams[name]; ok {
+				return nil, ErrInvalidRoutePath
+			}
+			seenParams[name] = struct{}{}
+			segments = append(segments, routeSegment{paramName: name})
+			continue
+		}
+		segments = append(segments, routeSegment{literal: rawSegment})
+	}
+
+	return segments, nil
+}
+
+func splitPath(path string) []string {
+	trimmed := strings.Trim(path, "/")
+	if trimmed == "" {
+		return nil
+	}
+	return strings.Split(trimmed, "/")
+}
+
+func hasPathParams(path string) bool {
+	for _, segment := range splitPath(path) {
+		if strings.HasPrefix(segment, ":") {
+			return true
+		}
+	}
+	return false
 }

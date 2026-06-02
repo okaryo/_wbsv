@@ -10,6 +10,15 @@ import (
 type Request struct {
 	Context context.Context
 	HTTP    http1.Request
+	Params  map[string]string
+}
+
+// Param returns a path parameter value.
+func (r Request) Param(name string) string {
+	if r.Params == nil {
+		return ""
+	}
+	return r.Params[name]
 }
 
 // AppHandler maps one parsed HTTP request to one HTTP response.

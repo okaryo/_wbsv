@@ -131,7 +131,7 @@ Questions to answer:
 
 - [x] Implement static route matching.
 - [x] Add method matching.
-- [ ] Add path parameters.
+- [x] Add path parameters.
 - [ ] Add wildcard routes.
 - [ ] Implement route priority rules.
 - [ ] Explore trie or radix tree routing.
@@ -248,3 +248,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   handlers and returns `404 Not Found` for misses.
 - Added method-aware routing so exact method routes can dispatch separately and
   known paths with unsupported methods return `405 Method Not Allowed`.
+- Added segment-based path parameters such as `/users/:id` and exposed matched
+  values through `Request.Param`.

@@ -150,6 +150,97 @@ func TestRouterPrefersExactMethodOverAnyMethod(t *testing.T) {
 	}
 }
 
+func TestRouterDispatchesPathParameters(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleMethodFunc("GET", "/users/:id", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("user " + request.Param("id") + "\n"))
+	}); err != nil {
+		t.Fatalf("handle param route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/users/42"),
+	})
+
+	response := writer.Response()
+	if response.StatusCode != 200 {
+		t.Fatalf("status code = %d, want 200", response.StatusCode)
+	}
+	if string(response.Body) != "user 42\n" {
+		t.Fatalf("body = %q, want path parameter body", string(response.Body))
+	}
+}
+
+func TestRouterIgnoresQueryStringForPathParameterMatch(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/users/:id", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte(request.Param("id")))
+	}); err != nil {
+		t.Fatalf("handle param route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/users/42?expand=true"),
+	})
+
+	if got := string(writer.Response().Body); got != "42" {
+		t.Fatalf("body = %q, want path parameter without query", got)
+	}
+}
+
+func TestRouterPrefersStaticRouteOverPathParameterRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/users/:id", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("param " + request.Param("id")))
+	}); err != nil {
+		t.Fatalf("handle param route: %v", err)
+	}
+	if err := router.HandleFunc("/users/me", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("static me"))
+	}); err != nil {
+		t.Fatalf("handle static route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/users/me"),
+	})
+
+	if got := string(writer.Response().Body); got != "static me" {
+		t.Fatalf("body = %q, want static route body", got)
+	}
+}
+
+func TestRouterReturnsMethodNotAllowedForPathParameterRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleMethodFunc("GET", "/users/:id", func(w ResponseWriter, request Request) {}); err != nil {
+		t.Fatalf("handle param route: %v", err)
+	}
+	writer := newBufferedResponseWriter()
+
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("POST", "/users/42"),
+	})
+
+	response := writer.Response()
+	if response.StatusCode != 405 {
+		t.Fatalf("status code = %d, want 405", response.StatusCode)
+	}
+	if got := headerValue(response.Headers, "Allow"); got != "GET" {
+		t.Fatalf("Allow = %q, want GET", got)
+	}
+}
+
 func TestRouterReturnsNotFoundForUnregisteredPath(t *testing.T) {
 	t.Parallel()
 
@@ -181,6 +272,12 @@ func TestRouterRejectsInvalidRegistrations(t *testing.T) {
 	}
 	if err := router.HandleMethodFunc("BAD METHOD", "/ok", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRouteMethod) {
 		t.Fatalf("bad method error = %v, want ErrInvalidRouteMethod", err)
+	}
+	if err := router.HandleFunc("/users/:", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRoutePath) {
+		t.Fatalf("empty parameter name error = %v, want ErrInvalidRoutePath", err)
+	}
+	if err := router.HandleFunc("/users/:id/books/:id", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRoutePath) {
+		t.Fatalf("duplicate parameter name error = %v, want ErrInvalidRoutePath", err)
 	}
 	if err := router.Handle("/ok", nil); !errors.Is(err, ErrMissingHandler) {
 		t.Fatalf("nil handler error = %v, want ErrMissingHandler", err)
