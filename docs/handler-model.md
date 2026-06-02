@@ -200,6 +200,29 @@ This is easy in the current server because responses are already buffered. A
 streaming implementation would need to decide when headers are committed and
 then wrap body writes with a gzip writer.
 
+## Rate Limit Middleware
+
+The fixed-window rate limit middleware keeps shared state inside the middleware:
+
+```text
+window start time
+request count in current window
+```
+
+When the count is below the configured limit, the middleware calls
+`next.ServeHTTP`. When the count reaches the limit, it writes:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: <seconds>
+```
+
+and does not call the next handler.
+
+This demonstrates why middleware with shared mutable state needs synchronization.
+The server can handle many connections concurrently, so the limiter protects its
+window state with a mutex.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the
@@ -210,6 +233,8 @@ then wrap body writes with a gzip writer.
   or token expiry.
 - Gzip compression is response-buffer based and does not stream compressed
   output.
+- Rate limiting is global fixed-window state, not per-client or token-bucket
+  based.
 - Recovery can reset buffered responses, but this behavior will need revisiting
   when response writing becomes streaming.
 

@@ -22,6 +22,8 @@ func main() {
 	maxHeaders := flag.Int("max-headers", 100, "maximum number of HTTP headers")
 	maxBody := flag.Int64("max-body", 1<<20, "maximum HTTP request body size")
 	authToken := flag.String("auth-token", "", "optional bearer token required for HTTP requests")
+	rateLimit := flag.Int("rate-limit", 0, "maximum HTTP requests per rate window; 0 disables rate limiting")
+	rateWindow := flag.Duration("rate-window", time.Minute, "time window for rate limiting")
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "wbsv: ", log.LstdFlags|log.Lmicroseconds)
@@ -36,6 +38,9 @@ func main() {
 	}
 	if *authToken != "" {
 		middlewares = append(middlewares, httpserver.BearerAuthMiddleware(*authToken))
+	}
+	if *rateLimit > 0 {
+		middlewares = append(middlewares, httpserver.FixedWindowRateLimitMiddleware(*rateLimit, *rateWindow))
 	}
 
 	httpHandler := &httpserver.Handler{

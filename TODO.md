@@ -119,7 +119,7 @@ Questions to answer:
 - [x] Add request ID middleware.
 - [x] Add bearer auth middleware.
 - [x] Add gzip compression middleware.
-- [ ] Explore rate-limit middleware.
+- [x] Add fixed-window rate-limit middleware.
 
 Questions to answer:
 
@@ -242,3 +242,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   application handler runs.
 - Added gzip compression middleware that rewrites buffered responses when the
   request accepts gzip.
+- Added fixed-window rate-limit middleware that returns `429 Too Many Requests`
+  without calling the application handler when the global limit is exceeded.

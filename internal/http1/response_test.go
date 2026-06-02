@@ -206,3 +206,11 @@ func TestStatusTextIncludesUnauthorized(t *testing.T) {
 		t.Fatalf("StatusText(401) = %q, want Unauthorized", got)
 	}
 }
+
+func TestStatusTextIncludesTooManyRequests(t *testing.T) {
+	t.Parallel()
+
+	if got := StatusText(429); got != "Too Many Requests" {
+		t.Fatalf("StatusText(429) = %q, want Too Many Requests", got)
+	}
+}
