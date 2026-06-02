@@ -129,7 +129,7 @@ Questions to answer:
 
 ### 6. Router Internals
 
-- [ ] Implement static route matching.
+- [x] Implement static route matching.
 - [ ] Add method matching.
 - [ ] Add path parameters.
 - [ ] Add wildcard routes.
@@ -244,3 +244,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   request accepts gzip.
 - Added fixed-window rate-limit middleware that returns `429 Too Many Requests`
   without calling the application handler when the global limit is exceeded.
+- Added a static path router that dispatches exact route paths to application
+  handlers and returns `404 Not Found` for misses.
