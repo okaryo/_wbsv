@@ -31,6 +31,7 @@ func main() {
 	middlewares := []httpserver.Middleware{
 		httpserver.RequestIDMiddleware(),
 		httpserver.LoggingMiddleware(logger),
+		httpserver.GzipCompressionMiddleware(1),
 		httpserver.RecoveryMiddleware(logger),
 	}
 	if *authToken != "" {

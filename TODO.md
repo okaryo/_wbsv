@@ -118,7 +118,7 @@ Questions to answer:
 - [x] Add recovery middleware.
 - [x] Add request ID middleware.
 - [x] Add bearer auth middleware.
-- [ ] Explore compression middleware.
+- [x] Add gzip compression middleware.
 - [ ] Explore rate-limit middleware.
 
 Questions to answer:
@@ -240,3 +240,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   headers and request context.
 - Added bearer auth middleware that can stop unauthorized requests before the
   application handler runs.
+- Added gzip compression middleware that rewrites buffered responses when the
+  request accepts gzip.

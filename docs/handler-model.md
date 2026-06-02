@@ -182,6 +182,24 @@ This demonstrates a different middleware shape from logging. Logging usually
 wraps the whole request and continues after `next.ServeHTTP`. Auth often decides
 whether `next.ServeHTTP` should run at all.
 
+## Compression Middleware
+
+The gzip compression middleware buffers the inner handler response, checks
+whether the request accepts gzip, and then replaces the response body before it
+is written to the connection.
+
+```text
+request has Accept-Encoding: gzip
+  -> inner handler writes buffered response
+  -> middleware compresses body with gzip
+  -> middleware adds Content-Encoding: gzip
+  -> compressed response is written outward
+```
+
+This is easy in the current server because responses are already buffered. A
+streaming implementation would need to decide when headers are committed and
+then wrap body writes with a gzip writer.
+
 ## Current Limitations
 
 - Response writes are buffered in memory rather than streamed directly to the
@@ -190,6 +208,8 @@ whether `next.ServeHTTP` should run at all.
   request.
 - Bearer auth uses one static token and does not model users, sessions, scopes,
   or token expiry.
+- Gzip compression is response-buffer based and does not stream compressed
+  output.
 - Recovery can reset buffered responses, but this behavior will need revisiting
   when response writing becomes streaming.
 
