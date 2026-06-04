@@ -71,6 +71,25 @@ static route
   -> wildcard route
 ```
 
+Parameter and wildcard routes are also ordered by specificity. The router checks
+segments from left to right and treats literal segments as more specific than
+parameters, and parameters as more specific than wildcards:
+
+```text
+literal segment
+  -> parameter segment
+  -> wildcard segment
+```
+
+For example, `/users/:id/books` takes priority over `/users/:id/:section` for
+`/users/42/books`, even if the generic route was registered first. Similarly,
+`/assets/images/*path` takes priority over `/assets/*path` for
+`/assets/images/logo.png`.
+
+If two routes have the same specificity, registration order remains the final
+tie-breaker. This keeps conflict resolution deterministic without introducing a
+tree structure yet.
+
 ## Current Scope
 
 `Handle(path, handler)` still registers an any-method route. This keeps path
@@ -91,5 +110,7 @@ Parameter routes with the same shape are grouped by method.
   selected handler.
 - Wildcards are useful for file-like paths because they can capture multiple
   remaining segments.
-- More advanced routers need more structure when path parameters, wildcards,
-  and priorities are introduced.
+- Route priority decides which matching pattern should win when several
+  patterns could match the same path.
+- More advanced routers use tree structures to encode these priority rules more
+  efficiently than a linear scan.

@@ -310,6 +310,56 @@ func TestRouterPrefersPathParameterRouteOverWildcardRoute(t *testing.T) {
 	}
 }
 
+func TestRouterPrefersMoreSpecificParameterRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/users/:id/:section", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("generic " + request.Param("section")))
+	}); err != nil {
+		t.Fatalf("handle generic parameter route: %v", err)
+	}
+	if err := router.HandleFunc("/users/:id/books", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("books " + request.Param("id")))
+	}); err != nil {
+		t.Fatalf("handle specific parameter route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/users/42/books"),
+	})
+
+	if got := string(writer.Response().Body); got != "books 42" {
+		t.Fatalf("body = %q, want more specific parameter route body", got)
+	}
+}
+
+func TestRouterPrefersLongerWildcardPrefix(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/assets/*path", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("assets " + request.Param("path")))
+	}); err != nil {
+		t.Fatalf("handle broad wildcard route: %v", err)
+	}
+	if err := router.HandleFunc("/assets/images/*path", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("images " + request.Param("path")))
+	}); err != nil {
+		t.Fatalf("handle specific wildcard route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/assets/images/logo.png"),
+	})
+
+	if got := string(writer.Response().Body); got != "images logo.png" {
+		t.Fatalf("body = %q, want longer wildcard prefix body", got)
+	}
+}
+
 func TestRouterReturnsNotFoundForUnregisteredPath(t *testing.T) {
 	t.Parallel()
 

@@ -197,6 +197,9 @@ func (r *Router) handleParamRoute(method string, path string, handler AppHandler
 		segments:     segments,
 		methodRoutes: map[string]AppHandler{method: handler},
 	})
+	sort.SliceStable(r.paramRoutes, func(i, j int) bool {
+		return routePriorityLess(r.paramRoutes[i], r.paramRoutes[j])
+	})
 	return nil
 }
 
@@ -237,6 +240,36 @@ func (r paramRoute) match(path string) (map[string]string, bool) {
 
 func (r paramRoute) hasWildcard() bool {
 	return len(r.segments) > 0 && r.segments[len(r.segments)-1].wildcardName != ""
+}
+
+func routePriorityLess(left paramRoute, right paramRoute) bool {
+	limit := len(left.segments)
+	if len(right.segments) < limit {
+		limit = len(right.segments)
+	}
+
+	for i := 0; i < limit; i++ {
+		leftWeight := routeSegmentPriority(left.segments[i])
+		rightWeight := routeSegmentPriority(right.segments[i])
+		if leftWeight != rightWeight {
+			return leftWeight > rightWeight
+		}
+	}
+
+	return len(left.segments) > len(right.segments)
+}
+
+func routeSegmentPriority(segment routeSegment) int {
+	switch {
+	case segment.literal != "":
+		return 3
+	case segment.paramName != "":
+		return 2
+	case segment.wildcardName != "":
+		return 1
+	default:
+		return 0
+	}
 }
 
 type routeSegment struct {

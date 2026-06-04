@@ -133,7 +133,7 @@ Questions to answer:
 - [x] Add method matching.
 - [x] Add path parameters.
 - [x] Add wildcard routes.
-- [ ] Implement route priority rules.
+- [x] Implement route priority rules.
 - [ ] Explore trie or radix tree routing.
 - [ ] Compare with routing behavior in common Go frameworks.
 
@@ -252,3 +252,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   values through `Request.Param`.
 - Added final-segment wildcard routes such as `/assets/*path` with static,
   parameter, then wildcard matching priority.
+- Added deterministic route priority rules so more specific parameter and
+  wildcard routes win over more generic patterns regardless of registration
+  order.
