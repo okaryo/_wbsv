@@ -134,7 +134,7 @@ Questions to answer:
 - [x] Add path parameters.
 - [x] Add wildcard routes.
 - [x] Implement route priority rules.
-- [ ] Explore trie or radix tree routing.
+- [x] Explore trie or radix tree routing.
 - [ ] Compare with routing behavior in common Go frameworks.
 
 Questions to answer:
@@ -255,3 +255,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added deterministic route priority rules so more specific parameter and
   wildcard routes win over more generic patterns regardless of registration
   order.
+- Replaced linear parameter-route scanning with a segment trie so dynamic route
+  matching follows the route tree in literal, parameter, then wildcard order.

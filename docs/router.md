@@ -87,8 +87,38 @@ For example, `/users/:id/books` takes priority over `/users/:id/:section` for
 `/assets/images/logo.png`.
 
 If two routes have the same specificity, registration order remains the final
-tie-breaker. This keeps conflict resolution deterministic without introducing a
-tree structure yet.
+tie-breaker. This keeps conflict resolution deterministic.
+
+## Segment Trie
+
+Parameter and wildcard routes are stored in a segment trie:
+
+```text
+/users/:id/books
+
+root
+  users
+    :id
+      books
+```
+
+During matching, the router walks one path segment at a time. At each node it
+tries children in priority order:
+
+```text
+literal child
+  -> parameter child
+  -> wildcard child
+```
+
+This makes route priority part of the traversal instead of sorting and scanning
+all registered parameter routes. For example, when matching
+`/users/42/books`, the router naturally tries the literal `books` branch before
+a parameter branch such as `:section`.
+
+This is still not a radix tree. A radix tree compresses common prefixes so one
+edge can represent more than one unit of input. This project currently uses the
+simpler segment trie because it makes the matching rules easier to inspect.
 
 ## Current Scope
 
@@ -112,5 +142,7 @@ Parameter routes with the same shape are grouped by method.
   remaining segments.
 - Route priority decides which matching pattern should win when several
   patterns could match the same path.
-- More advanced routers use tree structures to encode these priority rules more
-  efficiently than a linear scan.
+- A segment trie can encode route priority in the traversal order instead of
+  checking every registered pattern.
+- A radix tree is a more compact tree that can reduce the number of nodes and
+  comparisons for larger route tables.

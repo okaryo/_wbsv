@@ -16,14 +16,15 @@ const anyMethod = ""
 
 // Router matches static request paths to application handlers.
 type Router struct {
-	routes      map[string]map[string]AppHandler
-	paramRoutes []paramRoute
+	routes    map[string]map[string]AppHandler
+	paramRoot *routeNode
 }
 
 // NewRouter creates an empty static-path router.
 func NewRouter() *Router {
 	return &Router{
-		routes: make(map[string]map[string]AppHandler),
+		routes:    make(map[string]map[string]AppHandler),
+		paramRoot: &routeNode{},
 	}
 }
 
@@ -83,36 +84,11 @@ func (r *Router) ServeHTTP(w ResponseWriter, request Request) {
 	}
 
 	allowed := make(map[string]AppHandler)
-	for _, route := range r.paramRoutes {
-		if route.hasWildcard() {
-			continue
-		}
-		params, ok := route.match(targetPath)
-		if !ok {
-			continue
-		}
-
-		if dispatchMethod(w, request, route.methodRoutes, params, false) {
+	for _, match := range r.paramRoot.match(targetPath) {
+		if dispatchMethod(w, request, match.methodRoutes, match.params, false) {
 			return
 		}
-		for method, handler := range route.methodRoutes {
-			allowed[method] = handler
-		}
-	}
-
-	for _, route := range r.paramRoutes {
-		if !route.hasWildcard() {
-			continue
-		}
-		params, ok := route.match(targetPath)
-		if !ok {
-			continue
-		}
-
-		if dispatchMethod(w, request, route.methodRoutes, params, false) {
-			return
-		}
-		for method, handler := range route.methodRoutes {
+		for method, handler := range match.methodRoutes {
 			allowed[method] = handler
 		}
 	}
@@ -185,20 +161,10 @@ func (r *Router) handleParamRoute(method string, path string, handler AppHandler
 		return err
 	}
 
-	for i := range r.paramRoutes {
-		if r.paramRoutes[i].pattern == path {
-			r.paramRoutes[i].methodRoutes[method] = handler
-			return nil
-		}
-	}
-
-	r.paramRoutes = append(r.paramRoutes, paramRoute{
+	r.paramRoot.insert(paramRoute{
 		pattern:      path,
 		segments:     segments,
 		methodRoutes: map[string]AppHandler{method: handler},
-	})
-	sort.SliceStable(r.paramRoutes, func(i, j int) bool {
-		return routePriorityLess(r.paramRoutes[i], r.paramRoutes[j])
 	})
 	return nil
 }
@@ -209,73 +175,157 @@ type paramRoute struct {
 	methodRoutes map[string]AppHandler
 }
 
-func (r paramRoute) match(path string) (map[string]string, bool) {
-	pathSegments := splitPath(path)
-	if !r.hasWildcard() && len(pathSegments) != len(r.segments) {
-		return nil, false
-	}
-	if r.hasWildcard() && len(pathSegments) < len(r.segments)-1 {
-		return nil, false
-	}
-
-	params := make(map[string]string)
-	for i, routeSegment := range r.segments {
-		if routeSegment.wildcardName != "" {
-			params[routeSegment.wildcardName] = strings.Join(pathSegments[i:], "/")
-			return params, true
-		}
-
-		pathSegment := pathSegments[i]
-		if routeSegment.paramName != "" {
-			params[routeSegment.paramName] = pathSegment
-			continue
-		}
-		if routeSegment.literal != pathSegment {
-			return nil, false
-		}
-	}
-
-	return params, true
-}
-
-func (r paramRoute) hasWildcard() bool {
-	return len(r.segments) > 0 && r.segments[len(r.segments)-1].wildcardName != ""
-}
-
-func routePriorityLess(left paramRoute, right paramRoute) bool {
-	limit := len(left.segments)
-	if len(right.segments) < limit {
-		limit = len(right.segments)
-	}
-
-	for i := 0; i < limit; i++ {
-		leftWeight := routeSegmentPriority(left.segments[i])
-		rightWeight := routeSegmentPriority(right.segments[i])
-		if leftWeight != rightWeight {
-			return leftWeight > rightWeight
-		}
-	}
-
-	return len(left.segments) > len(right.segments)
-}
-
-func routeSegmentPriority(segment routeSegment) int {
-	switch {
-	case segment.literal != "":
-		return 3
-	case segment.paramName != "":
-		return 2
-	case segment.wildcardName != "":
-		return 1
-	default:
-		return 0
-	}
-}
-
 type routeSegment struct {
 	literal      string
 	paramName    string
 	wildcardName string
+}
+
+type routeNode struct {
+	routes           []paramRoute
+	literalChildren  map[string]*routeNode
+	paramChildren    []routeEdge
+	wildcardChildren []routeEdge
+}
+
+type routeEdge struct {
+	segment routeSegment
+	child   *routeNode
+}
+
+type routeMatch struct {
+	methodRoutes map[string]AppHandler
+	params       map[string]string
+}
+
+func (n *routeNode) insert(route paramRoute) {
+	node := n
+	for _, segment := range route.segments {
+		switch {
+		case segment.literal != "":
+			node = node.literalChild(segment.literal)
+		case segment.paramName != "":
+			node = node.paramChild(segment.paramName)
+		case segment.wildcardName != "":
+			node = node.wildcardChild(segment.wildcardName)
+		}
+	}
+
+	for i := range node.routes {
+		if node.routes[i].pattern == route.pattern {
+			for method, handler := range route.methodRoutes {
+				node.routes[i].methodRoutes[method] = handler
+			}
+			return
+		}
+	}
+	node.routes = append(node.routes, route)
+}
+
+func (n *routeNode) literalChild(literal string) *routeNode {
+	if n.literalChildren == nil {
+		n.literalChildren = make(map[string]*routeNode)
+	}
+	child := n.literalChildren[literal]
+	if child == nil {
+		child = &routeNode{}
+		n.literalChildren[literal] = child
+	}
+	return child
+}
+
+func (n *routeNode) paramChild(name string) *routeNode {
+	for _, edge := range n.paramChildren {
+		if edge.segment.paramName == name {
+			return edge.child
+		}
+	}
+
+	child := &routeNode{}
+	n.paramChildren = append(n.paramChildren, routeEdge{
+		segment: routeSegment{paramName: name},
+		child:   child,
+	})
+	return child
+}
+
+func (n *routeNode) wildcardChild(name string) *routeNode {
+	for _, edge := range n.wildcardChildren {
+		if edge.segment.wildcardName == name {
+			return edge.child
+		}
+	}
+
+	child := &routeNode{}
+	n.wildcardChildren = append(n.wildcardChildren, routeEdge{
+		segment: routeSegment{wildcardName: name},
+		child:   child,
+	})
+	return child
+}
+
+func (n *routeNode) match(path string) []routeMatch {
+	if n == nil {
+		return nil
+	}
+	return n.matchSegments(splitPath(path), 0, nil)
+}
+
+func (n *routeNode) matchSegments(pathSegments []string, index int, params map[string]string) []routeMatch {
+	var matches []routeMatch
+
+	if index == len(pathSegments) {
+		matches = append(matches, n.terminalMatches(params)...)
+		for _, edge := range n.wildcardChildren {
+			wildcardParams := withRouteParam(params, edge.segment.wildcardName, "")
+			matches = append(matches, edge.child.matchSegments(pathSegments, index, wildcardParams)...)
+		}
+		return matches
+	}
+
+	segment := pathSegments[index]
+	if child := n.literalChildren[segment]; child != nil {
+		matches = append(matches, child.matchSegments(pathSegments, index+1, params)...)
+	}
+	for _, edge := range n.paramChildren {
+		paramParams := withRouteParam(params, edge.segment.paramName, segment)
+		matches = append(matches, edge.child.matchSegments(pathSegments, index+1, paramParams)...)
+	}
+	for _, edge := range n.wildcardChildren {
+		wildcardParams := withRouteParam(params, edge.segment.wildcardName, strings.Join(pathSegments[index:], "/"))
+		matches = append(matches, edge.child.matchSegments(pathSegments, len(pathSegments), wildcardParams)...)
+	}
+
+	return matches
+}
+
+func (n *routeNode) terminalMatches(params map[string]string) []routeMatch {
+	if len(n.routes) == 0 {
+		return nil
+	}
+
+	matches := make([]routeMatch, 0, len(n.routes))
+	for _, route := range n.routes {
+		matches = append(matches, routeMatch{
+			methodRoutes: route.methodRoutes,
+			params:       cloneRouteParams(params),
+		})
+	}
+	return matches
+}
+
+func withRouteParam(params map[string]string, name string, value string) map[string]string {
+	next := cloneRouteParams(params)
+	next[name] = value
+	return next
+}
+
+func cloneRouteParams(params map[string]string) map[string]string {
+	cloned := make(map[string]string, len(params)+1)
+	for name, value := range params {
+		cloned[name] = value
+	}
+	return cloned
 }
 
 func parseRouteSegments(path string) ([]routeSegment, error) {

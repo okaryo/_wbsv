@@ -241,6 +241,42 @@ func TestRouterReturnsMethodNotAllowedForPathParameterRoute(t *testing.T) {
 	}
 }
 
+func TestRouterDispatchesByMethodForPathParameterRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleMethodFunc("GET", "/users/:id", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("get " + request.Param("id")))
+	}); err != nil {
+		t.Fatalf("handle GET param route: %v", err)
+	}
+	if err := router.HandleMethodFunc("POST", "/users/:id", func(w ResponseWriter, request Request) {
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte("post " + request.Param("id")))
+	}); err != nil {
+		t.Fatalf("handle POST param route: %v", err)
+	}
+
+	getWriter := newBufferedResponseWriter()
+	router.ServeHTTP(getWriter, Request{
+		HTTP: testRequest("GET", "/users/42"),
+	})
+	postWriter := newBufferedResponseWriter()
+	router.ServeHTTP(postWriter, Request{
+		HTTP: testRequest("POST", "/users/42"),
+	})
+
+	if got := string(getWriter.Response().Body); got != "get 42" {
+		t.Fatalf("GET body = %q, want GET parameter body", got)
+	}
+	if postWriter.Response().StatusCode != 201 {
+		t.Fatalf("POST status code = %d, want 201", postWriter.Response().StatusCode)
+	}
+	if got := string(postWriter.Response().Body); got != "post 42" {
+		t.Fatalf("POST body = %q, want POST parameter body", got)
+	}
+}
+
 func TestRouterDispatchesWildcardRoute(t *testing.T) {
 	t.Parallel()
 
