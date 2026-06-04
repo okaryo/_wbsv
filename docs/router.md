@@ -120,6 +120,117 @@ This is still not a radix tree. A radix tree compresses common prefixes so one
 edge can represent more than one unit of input. This project currently uses the
 simpler segment trie because it makes the matching rules easier to inspect.
 
+## Comparison With Common Go Routers
+
+The current router is intentionally smaller than production routers. It is
+useful because the important moving parts are visible: path splitting, route
+priority, parameter capture, method dispatch, and `404` versus `405` behavior.
+
+### `net/http.ServeMux`
+
+Modern `net/http.ServeMux` supports method, host, path, single-segment
+wildcards, and remainder wildcards in patterns such as:
+
+```text
+GET /users/{id}
+/files/{path...}
+example.com/
+```
+
+It uses a specificity rule: if multiple patterns match, the most specific
+pattern wins. If two patterns overlap but neither is more specific, registration
+panics because the conflict is ambiguous.
+
+Compared with this project, `ServeMux` also handles concerns this router does
+not yet handle:
+
+- Host-aware patterns.
+- `GET` also matching `HEAD`.
+- Path sanitizing and redirect behavior.
+- Segment-by-segment URL unescaping.
+- Conflict detection at registration time.
+
+### Echo
+
+Echo's router is based on a radix tree and exposes application-facing route
+syntax such as:
+
+```text
+/users/:id
+/users/*
+```
+
+Its documented path matching order is:
+
+```text
+static
+  -> param
+  -> match-any
+```
+
+This is very close to the priority order used here. The main difference is that
+Echo's router is optimized for framework use: it integrates method registration,
+context objects, middleware, and route metadata around a more compact tree.
+
+### `httprouter`
+
+`httprouter` uses a compressed dynamic trie, also called a radix tree. It is
+designed around explicit route matches: a request should match exactly one
+route or no route. That design avoids many ambiguous priority cases.
+
+Its named parameters match one path segment:
+
+```text
+/user/:user
+```
+
+and it has built-in support for method-aware routing, `405 Method Not Allowed`,
+trailing slash correction, and custom not-found or method-not-allowed handlers.
+
+Compared with this project, `httprouter` focuses much more on performance and
+allocation behavior. This project currently favors inspectability over
+optimization.
+
+### chi
+
+chi is built to stay compatible with `net/http` handlers while adding a router,
+middleware stack, route groups, subrouters, and request context integration. Its
+router is based on a Patricia radix trie.
+
+The main design difference is scope. This project's router only dispatches to
+an `AppHandler`. chi's router also helps organize larger API surfaces through
+composition:
+
+```text
+middleware
+  -> route group
+  -> subrouter
+  -> handler
+```
+
+## Current Limitations
+
+The router in this project deliberately leaves several production concerns out
+of scope for now:
+
+- It does not detect all conflicting route patterns.
+- It does not support host-aware routes.
+- It does not normalize or clean paths.
+- It does not percent-decode path segments before matching.
+- It does not redirect for trailing slash differences.
+- It does not compress the trie into a radix tree.
+- It does not expose route introspection or generated route documentation.
+
+These omissions are useful learning boundaries. The current implementation
+shows the core matching mechanics before adding framework-level behavior.
+
+## References
+
+- `net/http.ServeMux`: https://pkg.go.dev/net/http#ServeMux
+- Echo routing: https://echo.labstack.com/docs/routing
+- `httprouter`: https://github.com/julienschmidt/httprouter
+- chi: https://github.com/go-chi/chi
+
 ## Current Scope
 
 `Handle(path, handler)` still registers an any-method route. This keeps path

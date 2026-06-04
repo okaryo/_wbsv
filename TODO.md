@@ -135,7 +135,7 @@ Questions to answer:
 - [x] Add wildcard routes.
 - [x] Implement route priority rules.
 - [x] Explore trie or radix tree routing.
-- [ ] Compare with routing behavior in common Go frameworks.
+- [x] Compare with routing behavior in common Go frameworks.
 
 Questions to answer:
 
@@ -257,3 +257,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   order.
 - Replaced linear parameter-route scanning with a segment trie so dynamic route
   matching follows the route tree in literal, parameter, then wildcard order.
+- Compared the router with `net/http.ServeMux`, Echo, `httprouter`, and chi to
+  clarify which production router behaviors are intentionally out of scope.
