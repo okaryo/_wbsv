@@ -84,6 +84,26 @@ func (r *Router) ServeHTTP(w ResponseWriter, request Request) {
 
 	allowed := make(map[string]AppHandler)
 	for _, route := range r.paramRoutes {
+		if route.hasWildcard() {
+			continue
+		}
+		params, ok := route.match(targetPath)
+		if !ok {
+			continue
+		}
+
+		if dispatchMethod(w, request, route.methodRoutes, params, false) {
+			return
+		}
+		for method, handler := range route.methodRoutes {
+			allowed[method] = handler
+		}
+	}
+
+	for _, route := range r.paramRoutes {
+		if !route.hasWildcard() {
+			continue
+		}
 		params, ok := route.match(targetPath)
 		if !ok {
 			continue
@@ -188,12 +208,20 @@ type paramRoute struct {
 
 func (r paramRoute) match(path string) (map[string]string, bool) {
 	pathSegments := splitPath(path)
-	if len(pathSegments) != len(r.segments) {
+	if !r.hasWildcard() && len(pathSegments) != len(r.segments) {
+		return nil, false
+	}
+	if r.hasWildcard() && len(pathSegments) < len(r.segments)-1 {
 		return nil, false
 	}
 
 	params := make(map[string]string)
 	for i, routeSegment := range r.segments {
+		if routeSegment.wildcardName != "" {
+			params[routeSegment.wildcardName] = strings.Join(pathSegments[i:], "/")
+			return params, true
+		}
+
 		pathSegment := pathSegments[i]
 		if routeSegment.paramName != "" {
 			params[routeSegment.paramName] = pathSegment
@@ -207,9 +235,14 @@ func (r paramRoute) match(path string) (map[string]string, bool) {
 	return params, true
 }
 
+func (r paramRoute) hasWildcard() bool {
+	return len(r.segments) > 0 && r.segments[len(r.segments)-1].wildcardName != ""
+}
+
 type routeSegment struct {
-	literal   string
-	paramName string
+	literal      string
+	paramName    string
+	wildcardName string
 }
 
 func parseRouteSegments(path string) ([]routeSegment, error) {
@@ -217,10 +250,10 @@ func parseRouteSegments(path string) ([]routeSegment, error) {
 	segments := make([]routeSegment, 0, len(rawSegments))
 	seenParams := make(map[string]struct{})
 
-	for _, rawSegment := range rawSegments {
+	for i, rawSegment := range rawSegments {
 		if strings.HasPrefix(rawSegment, ":") {
 			name := strings.TrimPrefix(rawSegment, ":")
-			if name == "" || strings.ContainsAny(name, " \t\r\n") {
+			if invalidRouteParamName(name) {
 				return nil, ErrInvalidRoutePath
 			}
 			if _, ok := seenParams[name]; ok {
@@ -228,6 +261,18 @@ func parseRouteSegments(path string) ([]routeSegment, error) {
 			}
 			seenParams[name] = struct{}{}
 			segments = append(segments, routeSegment{paramName: name})
+			continue
+		}
+		if strings.HasPrefix(rawSegment, "*") {
+			name := strings.TrimPrefix(rawSegment, "*")
+			if invalidRouteParamName(name) || i != len(rawSegments)-1 {
+				return nil, ErrInvalidRoutePath
+			}
+			if _, ok := seenParams[name]; ok {
+				return nil, ErrInvalidRoutePath
+			}
+			seenParams[name] = struct{}{}
+			segments = append(segments, routeSegment{wildcardName: name})
 			continue
 		}
 		segments = append(segments, routeSegment{literal: rawSegment})
@@ -246,9 +291,13 @@ func splitPath(path string) []string {
 
 func hasPathParams(path string) bool {
 	for _, segment := range splitPath(path) {
-		if strings.HasPrefix(segment, ":") {
+		if strings.HasPrefix(segment, ":") || strings.HasPrefix(segment, "*") {
 			return true
 		}
 	}
 	return false
+}
+
+func invalidRouteParamName(name string) bool {
+	return name == "" || strings.ContainsAny(name, " \t\r\n")
 }

@@ -241,6 +241,75 @@ func TestRouterReturnsMethodNotAllowedForPathParameterRoute(t *testing.T) {
 	}
 }
 
+func TestRouterDispatchesWildcardRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/assets/*path", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte(request.Param("path")))
+	}); err != nil {
+		t.Fatalf("handle wildcard route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/assets/css/app.css"),
+	})
+
+	response := writer.Response()
+	if response.StatusCode != 200 {
+		t.Fatalf("status code = %d, want 200", response.StatusCode)
+	}
+	if string(response.Body) != "css/app.css" {
+		t.Fatalf("body = %q, want wildcard path", string(response.Body))
+	}
+}
+
+func TestRouterWildcardRouteCanMatchEmptyRemainder(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/assets/*path", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte(request.Param("path")))
+	}); err != nil {
+		t.Fatalf("handle wildcard route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/assets"),
+	})
+
+	if got := string(writer.Response().Body); got != "" {
+		t.Fatalf("body = %q, want empty wildcard path", got)
+	}
+}
+
+func TestRouterPrefersPathParameterRouteOverWildcardRoute(t *testing.T) {
+	t.Parallel()
+
+	router := NewRouter()
+	if err := router.HandleFunc("/files/:name", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("param " + request.Param("name")))
+	}); err != nil {
+		t.Fatalf("handle param route: %v", err)
+	}
+	if err := router.HandleFunc("/files/*path", func(w ResponseWriter, request Request) {
+		_, _ = w.Write([]byte("wildcard " + request.Param("path")))
+	}); err != nil {
+		t.Fatalf("handle wildcard route: %v", err)
+	}
+
+	writer := newBufferedResponseWriter()
+	router.ServeHTTP(writer, Request{
+		HTTP: testRequest("GET", "/files/readme.txt"),
+	})
+
+	if got := string(writer.Response().Body); got != "param readme.txt" {
+		t.Fatalf("body = %q, want parameter route body", got)
+	}
+}
+
 func TestRouterReturnsNotFoundForUnregisteredPath(t *testing.T) {
 	t.Parallel()
 
@@ -278,6 +347,12 @@ func TestRouterRejectsInvalidRegistrations(t *testing.T) {
 	}
 	if err := router.HandleFunc("/users/:id/books/:id", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRoutePath) {
 		t.Fatalf("duplicate parameter name error = %v, want ErrInvalidRoutePath", err)
+	}
+	if err := router.HandleFunc("/assets/*", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRoutePath) {
+		t.Fatalf("empty wildcard name error = %v, want ErrInvalidRoutePath", err)
+	}
+	if err := router.HandleFunc("/assets/*path/more", func(ResponseWriter, Request) {}); !errors.Is(err, ErrInvalidRoutePath) {
+		t.Fatalf("middle wildcard error = %v, want ErrInvalidRoutePath", err)
 	}
 	if err := router.Handle("/ok", nil); !errors.Is(err, ErrMissingHandler) {
 		t.Fatalf("nil handler error = %v, want ErrMissingHandler", err)

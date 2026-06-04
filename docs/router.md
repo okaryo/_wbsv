@@ -1,6 +1,7 @@
 # Router
 
-The router now performs static path, method, and path-parameter matching.
+The router now performs static path, method, path-parameter, and wildcard
+matching.
 
 ```text
 request target: /hello?name=wbsv
@@ -48,6 +49,28 @@ id := request.Param("id")
 Static routes are checked before parameter routes. This means `/users/me` can
 take priority over `/users/:id`.
 
+## Wildcards
+
+Wildcard routes use a final `*name` segment:
+
+```text
+route: /assets/*path
+path:  /assets/css/app.css
+param: path = css/app.css
+```
+
+The wildcard must be the last route segment because it consumes the rest of the
+path. It may also match an empty remainder, so `/assets/*path` can match
+`/assets`.
+
+The current priority is:
+
+```text
+static route
+  -> parameter route
+  -> wildcard route
+```
+
 ## Current Scope
 
 `Handle(path, handler)` still registers an any-method route. This keeps path
@@ -66,5 +89,7 @@ Parameter routes with the same shape are grouped by method.
 - A known path with an unsupported method should return `405`, not `404`.
 - Path parameters require preserving matched values and passing them to the
   selected handler.
+- Wildcards are useful for file-like paths because they can capture multiple
+  remaining segments.
 - More advanced routers need more structure when path parameters, wildcards,
   and priorities are introduced.

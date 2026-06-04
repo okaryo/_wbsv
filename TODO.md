@@ -132,7 +132,7 @@ Questions to answer:
 - [x] Implement static route matching.
 - [x] Add method matching.
 - [x] Add path parameters.
-- [ ] Add wildcard routes.
+- [x] Add wildcard routes.
 - [ ] Implement route priority rules.
 - [ ] Explore trie or radix tree routing.
 - [ ] Compare with routing behavior in common Go frameworks.
@@ -250,3 +250,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   known paths with unsupported methods return `405 Method Not Allowed`.
 - Added segment-based path parameters such as `/users/:id` and exposed matched
   values through `Request.Param`.
+- Added final-segment wildcard routes such as `/assets/*path` with static,
+  parameter, then wildcard matching priority.
