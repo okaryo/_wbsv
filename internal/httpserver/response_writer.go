@@ -10,6 +10,7 @@ import (
 type ResponseWriter interface {
 	AddHeader(name, value string)
 	SetHeader(name, value string)
+	SetCookie(cookie Cookie) error
 	WriteHeader(statusCode int)
 	Write([]byte) (int, error)
 }
@@ -37,6 +38,16 @@ func (w *bufferedResponseWriter) SetHeader(name, value string) {
 	}
 
 	w.AddHeader(name, value)
+}
+
+func (w *bufferedResponseWriter) SetCookie(cookie Cookie) error {
+	value, err := cookie.setCookieValue()
+	if err != nil {
+		return err
+	}
+
+	w.AddHeader("Set-Cookie", value)
+	return nil
 }
 
 func (w *bufferedResponseWriter) WriteHeader(statusCode int) {

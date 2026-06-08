@@ -145,7 +145,7 @@ Questions to answer:
 
 ### 7. Practical HTTP Features
 
-- [ ] Implement cookies.
+- [x] Implement cookies.
 - [ ] Implement cache-related headers.
 - [ ] Implement CORS handling.
 - [ ] Implement chunked transfer responses.
@@ -259,3 +259,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   matching follows the route tree in literal, parameter, then wildcard order.
 - Compared the router with `net/http.ServeMux`, Echo, `httprouter`, and chi to
   clarify which production router behaviors are intentionally out of scope.
+- Added simple request cookie parsing and response `Set-Cookie` writing to
+  study how cookie state is carried through HTTP headers.

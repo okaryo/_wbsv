@@ -21,6 +21,21 @@ func (r Request) Param(name string) string {
 	return r.Params[name]
 }
 
+// Cookie returns the first request cookie with name.
+func (r Request) Cookie(name string) (Cookie, bool) {
+	for _, cookie := range r.Cookies() {
+		if cookie.Name == name {
+			return cookie, true
+		}
+	}
+	return Cookie{}, false
+}
+
+// Cookies returns cookies parsed from the request Cookie headers.
+func (r Request) Cookies() []Cookie {
+	return requestCookies(r.HTTP.Headers)
+}
+
 // AppHandler maps one parsed HTTP request to one HTTP response.
 type AppHandler interface {
 	ServeHTTP(ResponseWriter, Request)
