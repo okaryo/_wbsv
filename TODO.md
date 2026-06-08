@@ -146,7 +146,7 @@ Questions to answer:
 ### 7. Practical HTTP Features
 
 - [x] Implement cookies.
-- [ ] Implement cache-related headers.
+- [x] Implement cache-related headers.
 - [ ] Implement CORS handling.
 - [ ] Implement chunked transfer responses.
 - [ ] Implement file streaming.
@@ -261,3 +261,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   clarify which production router behaviors are intentionally out of scope.
 - Added simple request cookie parsing and response `Set-Cookie` writing to
   study how cookie state is carried through HTTP headers.
+- Added cache-related response helpers for `Cache-Control`, `ETag`,
+  `Last-Modified`, and conditional request checks that can return
+  `304 Not Modified`.

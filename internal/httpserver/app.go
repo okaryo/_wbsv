@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+	"time"
 
 	"github.com/okaryo/_wbsv/internal/http1"
 )
@@ -34,6 +35,26 @@ func (r Request) Cookie(name string) (Cookie, bool) {
 // Cookies returns cookies parsed from the request Cookie headers.
 func (r Request) Cookies() []Cookie {
 	return requestCookies(r.HTTP.Headers)
+}
+
+// IfNoneMatch reports whether the request If-None-Match header matches etag.
+func (r Request) IfNoneMatch(etag string) bool {
+	return requestETagMatches(r.HTTP.Headers, etag)
+}
+
+// IfModifiedSince reports whether lastModified is not newer than the request
+// If-Modified-Since value.
+func (r Request) IfModifiedSince(lastModified time.Time) bool {
+	return requestNotModifiedSince(r.HTTP.Headers, lastModified)
+}
+
+// NotModified applies the usual cache revalidation order for safe responses:
+// If-None-Match takes priority over If-Modified-Since when both are present.
+func (r Request) NotModified(etag string, lastModified time.Time) bool {
+	if hasHeader(r.HTTP.Headers, "If-None-Match") {
+		return r.IfNoneMatch(etag)
+	}
+	return r.IfModifiedSince(lastModified)
 }
 
 // AppHandler maps one parsed HTTP request to one HTTP response.
