@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,6 +25,11 @@ func main() {
 	authToken := flag.String("auth-token", "", "optional bearer token required for HTTP requests")
 	rateLimit := flag.Int("rate-limit", 0, "maximum HTTP requests per rate window; 0 disables rate limiting")
 	rateWindow := flag.Duration("rate-window", time.Minute, "time window for rate limiting")
+	corsAllowOrigin := flag.String("cors-allow-origin", "", "comma-separated allowed CORS origins; empty disables CORS")
+	corsAllowMethods := flag.String("cors-allow-methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS", "comma-separated methods allowed for CORS preflight")
+	corsAllowHeaders := flag.String("cors-allow-headers", "", "comma-separated request headers allowed for CORS preflight; empty echoes requested headers")
+	corsAllowCredentials := flag.Bool("cors-allow-credentials", false, "allow credentialed CORS requests")
+	corsMaxAge := flag.Int("cors-max-age", 0, "maximum seconds browsers may cache successful CORS preflight responses")
 	flag.Parse()
 
 	logger := log.New(os.Stdout, "wbsv: ", log.LstdFlags|log.Lmicroseconds)
@@ -33,9 +39,20 @@ func main() {
 	middlewares := []httpserver.Middleware{
 		httpserver.RequestIDMiddleware(),
 		httpserver.LoggingMiddleware(logger),
+	}
+	if *corsAllowOrigin != "" {
+		middlewares = append(middlewares, httpserver.CORSMiddleware(httpserver.CORSOptions{
+			AllowOrigins:     splitCommaList(*corsAllowOrigin),
+			AllowMethods:     splitCommaList(*corsAllowMethods),
+			AllowHeaders:     splitCommaList(*corsAllowHeaders),
+			AllowCredentials: *corsAllowCredentials,
+			MaxAge:           *corsMaxAge,
+		}))
+	}
+	middlewares = append(middlewares,
 		httpserver.GzipCompressionMiddleware(1),
 		httpserver.RecoveryMiddleware(logger),
-	}
+	)
 	if *authToken != "" {
 		middlewares = append(middlewares, httpserver.BearerAuthMiddleware(*authToken))
 	}
@@ -66,4 +83,15 @@ func main() {
 		logger.Printf("server stopped: %v", err)
 		os.Exit(1)
 	}
+}
+
+func splitCommaList(value string) []string {
+	var values []string
+	for part := range strings.SplitSeq(value, ",") {
+		part = strings.Trim(part, " \t")
+		if part != "" {
+			values = append(values, part)
+		}
+	}
+	return values
 }

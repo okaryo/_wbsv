@@ -147,7 +147,7 @@ Questions to answer:
 
 - [x] Implement cookies.
 - [x] Implement cache-related headers.
-- [ ] Implement CORS handling.
+- [x] Implement CORS handling.
 - [ ] Implement chunked transfer responses.
 - [ ] Implement file streaming.
 - [ ] Implement range requests.
@@ -264,3 +264,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added cache-related response helpers for `Cache-Control`, `ETag`,
   `Last-Modified`, and conditional request checks that can return
   `304 Not Modified`.
+- Added CORS middleware for allowed origins, credentialed requests, preflight
+  responses, and command-line configuration.
