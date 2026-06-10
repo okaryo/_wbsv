@@ -149,7 +149,7 @@ Questions to answer:
 - [x] Implement cache-related headers.
 - [x] Implement CORS handling.
 - [x] Implement chunked transfer responses.
-- [ ] Implement file streaming.
+- [x] Implement file streaming.
 - [ ] Implement range requests.
 - [ ] Explore server-sent events.
 - [ ] Explore WebSocket upgrade basics.
@@ -269,3 +269,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added HTTP/1.1 chunked transfer response encoding with application-facing
   opt-in through the response writer. The current implementation teaches
   framing but still buffers the body before writing it.
+- Added `io.Reader`-based response bodies and `SendFile` so file responses can
+  be copied to the connection without loading the full file into memory.

@@ -20,6 +20,9 @@ type Response struct {
 	ReasonPhrase string
 	Headers      []HeaderField
 	Body         []byte
+	BodyReader   io.Reader
+	BodyCloser   io.Closer
+	BodyLength   int64
 	Chunked      bool
 }
 
@@ -37,6 +40,12 @@ func WriteResponse(w io.Writer, response Response) error {
 	}
 	if response.Chunked && version != "HTTP/1.1" {
 		return fmt.Errorf("%w: chunked response requires HTTP/1.1", ErrMalformedResponse)
+	}
+	if response.BodyReader != nil && response.BodyLength < 0 && !response.Chunked {
+		return fmt.Errorf("%w: streaming response requires length or chunked encoding", ErrMalformedResponse)
+	}
+	if response.BodyCloser != nil {
+		defer response.BodyCloser.Close()
 	}
 
 	reason := response.ReasonPhrase
@@ -76,17 +85,32 @@ func WriteResponse(w io.Writer, response Response) error {
 		if _, err := io.WriteString(w, "\r\n"); err != nil {
 			return err
 		}
-		return writeChunkedBody(w, response.Body)
+		return writeChunkedBody(w, response)
 	}
 
 	if err := writeHeaderField(w, HeaderField{
 		Name:  "Content-Length",
-		Value: strconv.Itoa(len(response.Body)),
+		Value: strconv.FormatInt(responseBodyLength(response), 10),
 	}); err != nil {
 		return err
 	}
 
 	if _, err := io.WriteString(w, "\r\n"); err != nil {
+		return err
+	}
+	return writeFixedBody(w, response)
+}
+
+func responseBodyLength(response Response) int64 {
+	if response.BodyReader != nil {
+		return response.BodyLength
+	}
+	return int64(len(response.Body))
+}
+
+func writeFixedBody(w io.Writer, response Response) error {
+	if response.BodyReader != nil {
+		_, err := io.CopyN(w, response.BodyReader, response.BodyLength)
 		return err
 	}
 	if len(response.Body) == 0 {
@@ -97,20 +121,47 @@ func WriteResponse(w io.Writer, response Response) error {
 	return err
 }
 
-func writeChunkedBody(w io.Writer, body []byte) error {
-	if len(body) > 0 {
-		if _, err := fmt.Fprintf(w, "%x\r\n", len(body)); err != nil {
+func writeChunkedBody(w io.Writer, response Response) error {
+	if response.BodyReader != nil {
+		if err := writeChunkedReader(w, response.BodyReader); err != nil {
 			return err
 		}
-		if _, err := w.Write(body); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(w, "\r\n"); err != nil {
+	} else if len(response.Body) > 0 {
+		if err := writeChunk(w, response.Body); err != nil {
 			return err
 		}
 	}
 
 	_, err := io.WriteString(w, "0\r\n\r\n")
+	return err
+}
+
+func writeChunkedReader(w io.Writer, reader io.Reader) error {
+	buffer := make([]byte, 32*1024)
+	for {
+		n, readErr := reader.Read(buffer)
+		if n > 0 {
+			if err := writeChunk(w, buffer[:n]); err != nil {
+				return err
+			}
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+}
+
+func writeChunk(w io.Writer, body []byte) error {
+	if _, err := fmt.Fprintf(w, "%x\r\n", len(body)); err != nil {
+		return err
+	}
+	if _, err := w.Write(body); err != nil {
+		return err
+	}
+	_, err := io.WriteString(w, "\r\n")
 	return err
 }
 

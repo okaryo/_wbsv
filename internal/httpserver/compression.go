@@ -72,6 +72,11 @@ func writeBufferedResponse(w ResponseWriter, response http1.Response) {
 	if response.Chunked {
 		w.UseChunkedEncoding()
 	}
+	if response.BodyReader != nil {
+		w.WriteHeader(response.StatusCode)
+		w.StreamBody(response.BodyReader, response.BodyLength)
+		return
+	}
 	w.WriteHeader(response.StatusCode)
 	_, _ = w.Write(response.Body)
 }

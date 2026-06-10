@@ -3,6 +3,7 @@ package http1
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -116,6 +117,72 @@ func TestWriteResponseRejectsChunkedHTTP10Response(t *testing.T) {
 		StatusCode: 200,
 		Body:       []byte("hello"),
 		Chunked:    true,
+	})
+	if !errors.Is(err, ErrMalformedResponse) {
+		t.Fatalf("WriteResponse() error = %v, want ErrMalformedResponse", err)
+	}
+}
+
+func TestWriteResponseStreamsFixedLengthBodyReader(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	err := WriteResponse(&buf, Response{
+		StatusCode: 200,
+		Headers: []HeaderField{
+			{Name: "Content-Type", Value: "text/plain"},
+		},
+		BodyReader: strings.NewReader("streamed"),
+		BodyLength: 8,
+	})
+	if err != nil {
+		t.Fatalf("WriteResponse() error = %v", err)
+	}
+
+	want := "HTTP/1.1 200 OK\r\n" +
+		"Content-Type: text/plain\r\n" +
+		"Content-Length: 8\r\n" +
+		"\r\n" +
+		"streamed"
+	if got := buf.String(); got != want {
+		t.Fatalf("response = %q, want %q", got, want)
+	}
+}
+
+func TestWriteResponseStreamsChunkedBodyReader(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	err := WriteResponse(&buf, Response{
+		StatusCode: 200,
+		BodyReader: strings.NewReader("streamed"),
+		BodyLength: -1,
+		Chunked:    true,
+	})
+	if err != nil {
+		t.Fatalf("WriteResponse() error = %v", err)
+	}
+
+	want := "HTTP/1.1 200 OK\r\n" +
+		"Transfer-Encoding: chunked\r\n" +
+		"\r\n" +
+		"8\r\n" +
+		"streamed\r\n" +
+		"0\r\n" +
+		"\r\n"
+	if got := buf.String(); got != want {
+		t.Fatalf("response = %q, want %q", got, want)
+	}
+}
+
+func TestWriteResponseRejectsUnknownLengthStreamingResponseWithoutChunkedEncoding(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	err := WriteResponse(&buf, Response{
+		StatusCode: 200,
+		BodyReader: strings.NewReader("streamed"),
+		BodyLength: -1,
 	})
 	if !errors.Is(err, ErrMalformedResponse) {
 		t.Fatalf("WriteResponse() error = %v, want ErrMalformedResponse", err)
