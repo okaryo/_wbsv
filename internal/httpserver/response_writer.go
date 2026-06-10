@@ -15,6 +15,7 @@ type ResponseWriter interface {
 	SetCookie(cookie Cookie) error
 	SetETag(etag string) error
 	SetLastModified(lastModified time.Time)
+	UseChunkedEncoding()
 	WriteNotModified(etag string, lastModified time.Time) error
 	WriteHeader(statusCode int)
 	Write([]byte) (int, error)
@@ -24,6 +25,7 @@ type bufferedResponseWriter struct {
 	statusCode int
 	headers    []http1.HeaderField
 	body       []byte
+	chunked    bool
 }
 
 func newBufferedResponseWriter() *bufferedResponseWriter {
@@ -79,6 +81,10 @@ func (w *bufferedResponseWriter) SetLastModified(lastModified time.Time) {
 	w.SetHeader("Last-Modified", httpTime(lastModified))
 }
 
+func (w *bufferedResponseWriter) UseChunkedEncoding() {
+	w.chunked = true
+}
+
 func (w *bufferedResponseWriter) WriteNotModified(etag string, lastModified time.Time) error {
 	if etag != "" {
 		if err := w.SetETag(etag); err != nil {
@@ -115,6 +121,7 @@ func (w *bufferedResponseWriter) Response() http1.Response {
 		StatusCode: statusCode,
 		Headers:    append([]http1.HeaderField(nil), w.headers...),
 		Body:       append([]byte(nil), w.body...),
+		Chunked:    w.chunked,
 	}
 }
 
@@ -122,4 +129,5 @@ func (w *bufferedResponseWriter) reset() {
 	w.statusCode = 0
 	w.headers = nil
 	w.body = nil
+	w.chunked = false
 }

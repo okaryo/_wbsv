@@ -148,7 +148,7 @@ Questions to answer:
 - [x] Implement cookies.
 - [x] Implement cache-related headers.
 - [x] Implement CORS handling.
-- [ ] Implement chunked transfer responses.
+- [x] Implement chunked transfer responses.
 - [ ] Implement file streaming.
 - [ ] Implement range requests.
 - [ ] Explore server-sent events.
@@ -266,3 +266,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   `304 Not Modified`.
 - Added CORS middleware for allowed origins, credentialed requests, preflight
   responses, and command-line configuration.
+- Added HTTP/1.1 chunked transfer response encoding with application-facing
+  opt-in through the response writer. The current implementation teaches
+  framing but still buffers the body before writing it.

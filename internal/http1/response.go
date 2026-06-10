@@ -20,6 +20,7 @@ type Response struct {
 	ReasonPhrase string
 	Headers      []HeaderField
 	Body         []byte
+	Chunked      bool
 }
 
 // WriteResponse writes a fixed-length HTTP/1.x response.
@@ -33,6 +34,9 @@ func WriteResponse(w io.Writer, response Response) error {
 	}
 	if response.StatusCode < 100 || response.StatusCode > 999 {
 		return fmt.Errorf("%w: %d", ErrInvalidStatusCode, response.StatusCode)
+	}
+	if response.Chunked && version != "HTTP/1.1" {
+		return fmt.Errorf("%w: chunked response requires HTTP/1.1", ErrMalformedResponse)
 	}
 
 	reason := response.ReasonPhrase
@@ -48,7 +52,8 @@ func WriteResponse(w io.Writer, response Response) error {
 	}
 
 	for _, header := range response.Headers {
-		if strings.EqualFold(header.Name, "Content-Length") {
+		if strings.EqualFold(header.Name, "Content-Length") ||
+			(response.Chunked && strings.EqualFold(header.Name, "Transfer-Encoding")) {
 			continue
 		}
 		if err := writeHeaderField(w, header); err != nil {
@@ -59,6 +64,19 @@ func WriteResponse(w io.Writer, response Response) error {
 	if !statusAllowsBody(response.StatusCode) {
 		_, err := io.WriteString(w, "\r\n")
 		return err
+	}
+
+	if response.Chunked {
+		if err := writeHeaderField(w, HeaderField{
+			Name:  "Transfer-Encoding",
+			Value: "chunked",
+		}); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, "\r\n"); err != nil {
+			return err
+		}
+		return writeChunkedBody(w, response.Body)
 	}
 
 	if err := writeHeaderField(w, HeaderField{
@@ -76,6 +94,23 @@ func WriteResponse(w io.Writer, response Response) error {
 	}
 
 	_, err := w.Write(response.Body)
+	return err
+}
+
+func writeChunkedBody(w io.Writer, body []byte) error {
+	if len(body) > 0 {
+		if _, err := fmt.Fprintf(w, "%x\r\n", len(body)); err != nil {
+			return err
+		}
+		if _, err := w.Write(body); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(w, "\r\n"); err != nil {
+			return err
+		}
+	}
+
+	_, err := io.WriteString(w, "0\r\n\r\n")
 	return err
 }
 

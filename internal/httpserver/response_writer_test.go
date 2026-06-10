@@ -38,6 +38,23 @@ func TestBufferedResponseWriterKeepsFirstStatusCode(t *testing.T) {
 	}
 }
 
+func TestBufferedResponseWriterCanUseChunkedEncoding(t *testing.T) {
+	t.Parallel()
+
+	writer := newBufferedResponseWriter()
+
+	writer.UseChunkedEncoding()
+	_, _ = writer.Write([]byte("hello"))
+
+	response := writer.Response()
+	if !response.Chunked {
+		t.Fatal("response.Chunked = false, want true")
+	}
+	if string(response.Body) != "hello" {
+		t.Fatalf("body = %q, want hello", string(response.Body))
+	}
+}
+
 func TestBufferedResponseWriterSetsAndAddsHeaders(t *testing.T) {
 	t.Parallel()
 
