@@ -151,7 +151,7 @@ Questions to answer:
 - [x] Implement chunked transfer responses.
 - [x] Implement file streaming.
 - [x] Implement range requests.
-- [ ] Explore server-sent events.
+- [x] Explore server-sent events.
 - [ ] Explore WebSocket upgrade basics.
 
 Questions to answer:
@@ -273,3 +273,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   be copied to the connection without loading the full file into memory.
 - Added single byte-range parsing and partial-content response helpers for
   `206 Partial Content` and `416 Range Not Satisfiable`.
+- Added Server-Sent Event framing helpers for `text/event-stream` responses.
+  The current implementation teaches SSE encoding but does not yet flush
+  long-lived events while a handler is running.

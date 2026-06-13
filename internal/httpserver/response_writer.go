@@ -23,6 +23,7 @@ type ResponseWriter interface {
 	StreamRange(reader io.ReaderAt, size int64, byteRange ByteRange) error
 	SendFile(path string) error
 	UseChunkedEncoding()
+	WriteEvent(event ServerSentEvent) error
 	WriteRangeNotSatisfiable(size int64)
 	WriteNotModified(etag string, lastModified time.Time) error
 	WriteHeader(statusCode int)
