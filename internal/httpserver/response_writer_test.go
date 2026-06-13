@@ -115,6 +115,9 @@ func TestBufferedResponseWriterSendFile(t *testing.T) {
 	if got := headerValue(response.Headers, "Content-Type"); got != "text/plain; charset=utf-8" {
 		t.Fatalf("Content-Type = %q, want text/plain", got)
 	}
+	if got := headerValue(response.Headers, "Accept-Ranges"); got != "bytes" {
+		t.Fatalf("Accept-Ranges = %q, want bytes", got)
+	}
 	if got := headerValue(response.Headers, "Last-Modified"); got == "" {
 		t.Fatal("Last-Modified is empty, want file modification time")
 	}

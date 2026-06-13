@@ -205,6 +205,8 @@ func StatusText(code int) string {
 		return "Length Required"
 	case 413:
 		return "Content Too Large"
+	case 416:
+		return "Range Not Satisfiable"
 	case 429:
 		return "Too Many Requests"
 	case 500:

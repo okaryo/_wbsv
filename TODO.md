@@ -150,7 +150,7 @@ Questions to answer:
 - [x] Implement CORS handling.
 - [x] Implement chunked transfer responses.
 - [x] Implement file streaming.
-- [ ] Implement range requests.
+- [x] Implement range requests.
 - [ ] Explore server-sent events.
 - [ ] Explore WebSocket upgrade basics.
 
@@ -271,3 +271,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   framing but still buffers the body before writing it.
 - Added `io.Reader`-based response bodies and `SendFile` so file responses can
   be copied to the connection without loading the full file into memory.
+- Added single byte-range parsing and partial-content response helpers for
+  `206 Partial Content` and `416 Range Not Satisfiable`.

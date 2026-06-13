@@ -348,3 +348,11 @@ func TestStatusTextIncludesTooManyRequests(t *testing.T) {
 		t.Fatalf("StatusText(429) = %q, want Too Many Requests", got)
 	}
 }
+
+func TestStatusTextIncludesRangeNotSatisfiable(t *testing.T) {
+	t.Parallel()
+
+	if got := StatusText(416); got != "Range Not Satisfiable" {
+		t.Fatalf("StatusText(416) = %q, want Range Not Satisfiable", got)
+	}
+}

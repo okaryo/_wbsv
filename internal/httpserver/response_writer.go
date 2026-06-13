@@ -20,8 +20,10 @@ type ResponseWriter interface {
 	SetETag(etag string) error
 	SetLastModified(lastModified time.Time)
 	StreamBody(reader io.Reader, contentLength int64)
+	StreamRange(reader io.ReaderAt, size int64, byteRange ByteRange) error
 	SendFile(path string) error
 	UseChunkedEncoding()
+	WriteRangeNotSatisfiable(size int64)
 	WriteNotModified(etag string, lastModified time.Time) error
 	WriteHeader(statusCode int)
 	Write([]byte) (int, error)
@@ -122,6 +124,7 @@ func (w *bufferedResponseWriter) SendFile(path string) error {
 	if contentType := mime.TypeByExtension(filepath.Ext(path)); contentType != "" {
 		w.SetHeader("Content-Type", contentType)
 	}
+	w.SetHeader("Accept-Ranges", "bytes")
 	w.SetLastModified(info.ModTime())
 	w.StreamBody(file, info.Size())
 	return nil
