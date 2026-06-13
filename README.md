@@ -148,6 +148,30 @@ To observe a read timeout, connect with `nc` and do not type anything until the
 timeout expires. The server should return `408 Request Timeout` and close that
 connection.
 
+## Running A Small Load Test
+
+Start the server:
+
+```sh
+go run ./cmd/wbsv
+```
+
+Run the small load test command from another terminal:
+
+```sh
+go run ./cmd/wbsvload --requests 100 --concurrency 10
+```
+
+Disable client keep-alive reuse to observe more connection churn:
+
+```sh
+go run ./cmd/wbsvload --requests 100 --concurrency 10 --disable-keep-alives
+```
+
+The tool is intentionally simple. It is meant for observing status counts,
+latency, failures, bytes read, and server-side connection logs rather than for
+benchmark-grade measurement.
+
 ## Project Documents
 
 - `README.md`: project purpose, scope, and high-level learning direction.

@@ -163,7 +163,7 @@ Questions to answer:
 
 ### 8. Robustness and Load Behavior
 
-- [ ] Add simple load testing scripts or commands.
+- [x] Add simple load testing scripts or commands.
 - [ ] Observe goroutine counts under concurrent clients.
 - [ ] Detect connection leaks.
 - [ ] Explore worker pools.
@@ -278,3 +278,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   long-lived events while a handler is running.
 - Added the HTTP/1.1 WebSocket upgrade handshake and documented why full
   WebSocket support requires taking over the connection and handling frames.
+- Added a small `wbsvload` command for sending concurrent HTTP requests and
+  observing status distribution, failures, latency, bytes read, and keep-alive
+  behavior.
