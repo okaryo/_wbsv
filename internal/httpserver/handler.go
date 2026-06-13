@@ -64,7 +64,7 @@ func (h *Handler) ServeConn(ctx context.Context, conn net.Conn) {
 		}
 		h.logf("handled HTTP request from %s", conn.RemoteAddr())
 
-		if closeAfterResponse {
+		if closeAfterResponse || response.StatusCode == 101 {
 			return
 		}
 	}

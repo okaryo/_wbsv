@@ -183,6 +183,8 @@ func ErrorResponse(statusCode int, message string) Response {
 // StatusText returns a reason phrase for common HTTP status codes.
 func StatusText(code int) string {
 	switch code {
+	case 101:
+		return "Switching Protocols"
 	case 200:
 		return "OK"
 	case 201:

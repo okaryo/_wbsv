@@ -152,7 +152,7 @@ Questions to answer:
 - [x] Implement file streaming.
 - [x] Implement range requests.
 - [x] Explore server-sent events.
-- [ ] Explore WebSocket upgrade basics.
+- [x] Explore WebSocket upgrade basics.
 
 Questions to answer:
 
@@ -276,3 +276,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added Server-Sent Event framing helpers for `text/event-stream` responses.
   The current implementation teaches SSE encoding but does not yet flush
   long-lived events while a handler is running.
+- Added the HTTP/1.1 WebSocket upgrade handshake and documented why full
+  WebSocket support requires taking over the connection and handling frames.
