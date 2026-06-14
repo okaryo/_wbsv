@@ -525,6 +525,94 @@ func TestServerWaitForIdleReturnsFalseWhileConnectionIsActive(t *testing.T) {
 	}
 }
 
+func TestServerLimitsConnectionHandlersWithWorkerPool(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	started := make(chan struct{}, 3)
+	release := make(chan struct{})
+	server := &Server{
+		HandlerWorkers: 2,
+		Logger:         log.New(io.Discard, "", 0),
+		ConnHandler: func(context.Context, net.Conn) {
+			started <- struct{}{}
+			<-release
+		},
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conns := make([]net.Conn, 0, 3)
+	for range 3 {
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		conns = append(conns, conn)
+	}
+	defer func() {
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
+	}()
+
+	for range 2 {
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("handler did not start")
+		}
+	}
+
+	deadline := time.After(time.Second)
+	for server.Stats().ActiveConnections < 3 {
+		select {
+		case <-deadline:
+			t.Fatalf("server did not track all connections; stats = %+v", server.Stats())
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	select {
+	case <-started:
+		t.Fatal("third handler started before a worker was released")
+	case <-time.After(30 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("third handler did not start after a worker was released")
+	}
+
+	if !server.WaitForIdle(time.Second) {
+		t.Fatalf("server did not become idle; stats = %+v", server.Stats())
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop")
+	}
+}
+
 func TestServerClosesListenerOnceOnShutdown(t *testing.T) {
 	t.Parallel()
 

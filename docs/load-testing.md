@@ -55,6 +55,21 @@ This is useful for comparing:
 - Many requests over reused HTTP client connections.
 - Many requests where each request tends to open a separate connection.
 
+Limit connection handler concurrency on the server:
+
+```sh
+go run ./cmd/wbsv --handler-workers 2
+```
+
+Then run a concurrent client load:
+
+```sh
+go run ./cmd/wbsvload --requests 100 --concurrency 20 --disable-keep-alives
+```
+
+This is useful for comparing goroutine-per-connection with a fixed connection
+worker pool.
+
 Send custom headers:
 
 ```sh
@@ -125,6 +140,8 @@ The load tool is intentionally small:
 - The server logs active connection and goroutine snapshots when connections are
   tracked and untracked.
 - Server tests can wait for the active connection count to return to zero.
+- The server can optionally cap connection handler concurrency with
+  `--handler-workers`.
 - It is not a statistically rigorous benchmark tool.
 - It does not report percentiles yet.
 - It does not generate slow clients or backpressure scenarios yet.

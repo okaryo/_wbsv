@@ -19,6 +19,7 @@ func main() {
 	readTimeout := flag.Duration("read-timeout", 30*time.Second, "maximum time to wait for bytes from a connected client")
 	writeTimeout := flag.Duration("write-timeout", 30*time.Second, "maximum time to wait while writing bytes to a connected client")
 	gracefulTimeout := flag.Duration("graceful-timeout", 5*time.Second, "maximum time to wait for active connections during shutdown before force closing them")
+	handlerWorkers := flag.Int("handler-workers", 0, "number of connection handler workers; 0 uses one goroutine per connection")
 	maxLine := flag.Int("max-line", 8192, "maximum HTTP line length")
 	maxHeaders := flag.Int("max-headers", 100, "maximum number of HTTP headers")
 	maxBody := flag.Int64("max-body", 1<<20, "maximum HTTP request body size")
@@ -75,6 +76,7 @@ func main() {
 		ReadTimeout:     *readTimeout,
 		WriteTimeout:    *writeTimeout,
 		GracefulTimeout: *gracefulTimeout,
+		HandlerWorkers:  *handlerWorkers,
 		Logger:          logger,
 		ConnHandler:     httpHandler.ServeConn,
 	}

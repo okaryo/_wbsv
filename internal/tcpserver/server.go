@@ -22,6 +22,7 @@ type Server struct {
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	GracefulTimeout time.Duration
+	HandlerWorkers  int
 	Logger          *log.Logger
 	ConnHandler     ConnHandler
 
@@ -66,10 +67,7 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 		})
 	}
 
-	defer shutdown()
-
 	done := make(chan struct{})
-	defer close(done)
 
 	go func() {
 		select {
@@ -80,6 +78,27 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 	}()
 
 	s.logf("listening on %s", listener.Addr())
+
+	var connJobs chan net.Conn
+	var workerWG sync.WaitGroup
+	if s.HandlerWorkers > 0 {
+		connJobs = make(chan net.Conn)
+		workerWG.Add(s.HandlerWorkers)
+		for range s.HandlerWorkers {
+			go func() {
+				defer workerWG.Done()
+				for conn := range connJobs {
+					s.serveTrackedConn(ctx, conn)
+				}
+			}()
+		}
+		defer workerWG.Wait()
+		defer close(connJobs)
+		s.logf("started %d connection handler workers", s.HandlerWorkers)
+	}
+
+	defer close(done)
+	defer shutdown()
 
 	for {
 		s.logf("waiting for a connection")
@@ -96,13 +115,26 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 			return nil
 		}
 
-		connCtx, cancelConn := context.WithCancel(ctx)
-		go func() {
-			defer cancelConn()
-			defer s.untrackConn(conn)
-			s.handleConn(connCtx, conn)
-		}()
+		if connJobs != nil {
+			select {
+			case connJobs <- conn:
+			case <-ctx.Done():
+				_ = conn.Close()
+				s.untrackConn(conn)
+				return nil
+			}
+			continue
+		}
+
+		go s.serveTrackedConn(ctx, conn)
 	}
+}
+
+func (s *Server) serveTrackedConn(ctx context.Context, conn net.Conn) {
+	connCtx, cancelConn := context.WithCancel(ctx)
+	defer cancelConn()
+	defer s.untrackConn(conn)
+	s.handleConn(connCtx, conn)
 }
 
 func (s *Server) handleConn(ctx context.Context, conn net.Conn) {

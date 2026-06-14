@@ -166,7 +166,7 @@ Questions to answer:
 - [x] Add simple load testing scripts or commands.
 - [x] Observe goroutine counts under concurrent clients.
 - [x] Detect connection leaks.
-- [ ] Explore worker pools.
+- [x] Explore worker pools.
 - [ ] Explore backpressure.
 - [x] Run race detection where applicable.
 - [ ] Document known limitations.
@@ -286,3 +286,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added `WaitForIdle` so tests can detect whether tracked TCP connections return
   to zero after clients finish.
 - Ran the test suite with the race detector while adding connection idle checks.
+- Added an optional TCP connection worker pool so handler concurrency can be
+  capped and compared with the default goroutine-per-connection model.
