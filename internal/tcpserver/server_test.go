@@ -407,6 +407,124 @@ func TestServerStatsReportsActiveConnectionsAndGoroutines(t *testing.T) {
 	}
 }
 
+func TestServerWaitForIdleReturnsTrueAfterConnectionsClose(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := &Server{
+		Logger: log.New(io.Discard, "", 0),
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	for range 5 {
+		conn, err := net.Dial("tcp", listener.Addr().String())
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+
+		if err := conn.SetDeadline(time.Now().Add(time.Second)); err != nil {
+			t.Fatalf("set deadline: %v", err)
+		}
+
+		const message = "hello"
+		if _, err := conn.Write([]byte(message)); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+		buf := make([]byte, len(message))
+		if _, err := io.ReadFull(conn, buf); err != nil {
+			t.Fatalf("read echo: %v", err)
+		}
+		if err := conn.Close(); err != nil {
+			t.Fatalf("close client conn: %v", err)
+		}
+	}
+
+	if !server.WaitForIdle(time.Second) {
+		t.Fatalf("server did not become idle; stats = %+v", server.Stats())
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop")
+	}
+}
+
+func TestServerWaitForIdleReturnsFalseWhileConnectionIsActive(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := &Server{
+		Logger: log.New(io.Discard, "", 0),
+		ConnHandler: func(context.Context, net.Conn) {
+			close(started)
+			<-release
+		},
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start")
+	}
+
+	if server.WaitForIdle(20 * time.Millisecond) {
+		t.Fatal("WaitForIdle() = true, want false while connection is active")
+	}
+
+	close(release)
+	if !server.WaitForIdle(time.Second) {
+		t.Fatalf("server did not become idle after release; stats = %+v", server.Stats())
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop")
+	}
+}
+
 func TestServerClosesListenerOnceOnShutdown(t *testing.T) {
 	t.Parallel()
 

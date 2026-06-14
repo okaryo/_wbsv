@@ -87,6 +87,32 @@ untracked connection: active_connections=9 goroutines=13
 These values are snapshots. They are useful for observation, but they are not a
 complete metrics system.
 
+## Detecting Connection Leaks
+
+After a load run finishes, `active_connections` should eventually return to
+`0`. If it does not, the server may still have a connection goroutine blocked or
+a connection that was not untracked.
+
+The TCP server exposes `WaitForIdle(timeout)` for tests and small experiments.
+It waits until the tracked active connection count reaches zero:
+
+```go
+if !server.WaitForIdle(time.Second) {
+    t.Fatalf("server did not become idle; stats = %+v", server.Stats())
+}
+```
+
+This is intentionally simple. It is not a production observability system, but
+it makes connection leaks concrete while studying lifecycle behavior.
+
+Common causes to investigate when the server does not become idle:
+
+- A handler is blocked on `Read` or `Write`.
+- A long-lived streaming response never finishes.
+- A connection was not closed during shutdown.
+- A goroutine is waiting on a channel that never receives a value.
+- A timeout or cancellation path does not release the connection.
+
 ## Current Scope
 
 The load tool is intentionally small:
@@ -98,6 +124,7 @@ The load tool is intentionally small:
 - It summarizes status codes and simple latency values.
 - The server logs active connection and goroutine snapshots when connections are
   tracked and untracked.
+- Server tests can wait for the active connection count to return to zero.
 - It is not a statistically rigorous benchmark tool.
 - It does not report percentiles yet.
 - It does not generate slow clients or backpressure scenarios yet.
@@ -110,6 +137,7 @@ The goal is observation and repeatability, not benchmark-grade measurement.
 - Keep-alive changes connection churn and can hide per-request TCP setup cost.
 - Server-side goroutine count should rise with active connection handlers and
   fall after connections finish.
+- A simple idle check can turn "maybe leaked" into a testable condition.
 - Load testing should separate transport errors from HTTP status codes.
 - Latency values are only meaningful when interpreted with request count,
   concurrency, server logs, and machine conditions.

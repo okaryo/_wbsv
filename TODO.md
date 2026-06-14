@@ -165,10 +165,10 @@ Questions to answer:
 
 - [x] Add simple load testing scripts or commands.
 - [x] Observe goroutine counts under concurrent clients.
-- [ ] Detect connection leaks.
+- [x] Detect connection leaks.
 - [ ] Explore worker pools.
 - [ ] Explore backpressure.
-- [ ] Run race detection where applicable.
+- [x] Run race detection where applicable.
 - [ ] Document known limitations.
 
 Questions to answer:
@@ -283,3 +283,6 @@ Use this section to record notable decisions, discoveries, and direction changes
   behavior.
 - Added server-side stats snapshots for active connections and goroutine counts
   when TCP connections are tracked and untracked.
+- Added `WaitForIdle` so tests can detect whether tracked TCP connections return
+  to zero after clients finish.
+- Ran the test suite with the race detector while adding connection idle checks.

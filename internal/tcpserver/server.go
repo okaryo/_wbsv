@@ -205,6 +205,31 @@ func (s *Server) Stats() Stats {
 	}
 }
 
+// WaitForIdle waits until all tracked connections have been untracked.
+func (s *Server) WaitForIdle(timeout time.Duration) bool {
+	if timeout <= 0 {
+		return s.Stats().ActiveConnections == 0
+	}
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		if s.Stats().ActiveConnections == 0 {
+			return true
+		}
+
+		select {
+		case <-timer.C:
+			return false
+		case <-ticker.C:
+		}
+	}
+}
+
 func (s *Server) logStats(event string) {
 	stats := s.Stats()
 	s.logf("%s: active_connections=%d goroutines=%d", event, stats.ActiveConnections, stats.Goroutines)
