@@ -72,9 +72,20 @@ During a run, watch the server logs and the load test summary:
 - Total bytes read by the client.
 - Latency min, average, and max.
 - Server logs around accepted connections and handled requests.
+- Server-side `active_connections` and `goroutines` values.
 
 For connection lifecycle learning, compare keep-alive enabled versus disabled.
 When keep-alive is disabled, the server should see more connection churn.
+
+The TCP server logs connection tracking events:
+
+```text
+tracked connection: active_connections=10 goroutines=14
+untracked connection: active_connections=9 goroutines=13
+```
+
+These values are snapshots. They are useful for observation, but they are not a
+complete metrics system.
 
 ## Current Scope
 
@@ -85,9 +96,10 @@ The load tool is intentionally small:
 - It supports repeated request headers.
 - It can disable client keep-alives.
 - It summarizes status codes and simple latency values.
+- The server logs active connection and goroutine snapshots when connections are
+  tracked and untracked.
 - It is not a statistically rigorous benchmark tool.
 - It does not report percentiles yet.
-- It does not track server-side goroutine counts yet.
 - It does not generate slow clients or backpressure scenarios yet.
 
 The goal is observation and repeatability, not benchmark-grade measurement.
@@ -96,6 +108,8 @@ The goal is observation and repeatability, not benchmark-grade measurement.
 
 - Concurrency increases simultaneous in-flight work.
 - Keep-alive changes connection churn and can hide per-request TCP setup cost.
+- Server-side goroutine count should rise with active connection handlers and
+  fall after connections finish.
 - Load testing should separate transport errors from HTTP status codes.
 - Latency values are only meaningful when interpreted with request count,
   concurrency, server logs, and machine conditions.

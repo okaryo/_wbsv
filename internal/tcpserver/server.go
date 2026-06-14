@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -28,6 +29,12 @@ type Server struct {
 	activeConns  map[net.Conn]struct{}
 	shuttingDown bool
 	wg           sync.WaitGroup
+}
+
+// Stats reports server-side concurrency counters for observation.
+type Stats struct {
+	ActiveConnections int
+	Goroutines        int
 }
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
@@ -162,9 +169,8 @@ func (s *Server) logf(format string, args ...any) {
 
 func (s *Server) trackConn(conn net.Conn) bool {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if s.shuttingDown {
+		s.mu.Unlock()
 		return false
 	}
 
@@ -173,6 +179,9 @@ func (s *Server) trackConn(conn net.Conn) bool {
 		s.activeConns = make(map[net.Conn]struct{})
 	}
 	s.activeConns[conn] = struct{}{}
+	s.mu.Unlock()
+
+	s.logStats("tracked connection")
 	return true
 }
 
@@ -182,6 +191,23 @@ func (s *Server) untrackConn(conn net.Conn) {
 	s.mu.Unlock()
 
 	s.wg.Done()
+	s.logStats("untracked connection")
+}
+
+func (s *Server) Stats() Stats {
+	s.mu.Lock()
+	activeConns := len(s.activeConns)
+	s.mu.Unlock()
+
+	return Stats{
+		ActiveConnections: activeConns,
+		Goroutines:        runtime.NumGoroutine(),
+	}
+}
+
+func (s *Server) logStats(event string) {
+	stats := s.Stats()
+	s.logf("%s: active_connections=%d goroutines=%d", event, stats.ActiveConnections, stats.Goroutines)
 }
 
 func (s *Server) beginShutdown() {

@@ -335,6 +335,78 @@ func TestServerCancelsConnectionContextOnShutdown(t *testing.T) {
 	}
 }
 
+func TestServerStatsReportsActiveConnectionsAndGoroutines(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	server := &Server{
+		Logger: log.New(io.Discard, "", 0),
+		ConnHandler: func(context.Context, net.Conn) {
+			close(started)
+			<-release
+		},
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.Serve(ctx, listener)
+	}()
+
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("handler did not start")
+	}
+
+	stats := server.Stats()
+	if stats.ActiveConnections != 1 {
+		t.Fatalf("ActiveConnections = %d, want 1", stats.ActiveConnections)
+	}
+	if stats.Goroutines <= 0 {
+		t.Fatalf("Goroutines = %d, want positive value", stats.Goroutines)
+	}
+
+	close(release)
+
+	deadline := time.After(time.Second)
+	for {
+		if server.Stats().ActiveConnections == 0 {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("active connection was not untracked")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("serve: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not stop")
+	}
+}
+
 func TestServerClosesListenerOnceOnShutdown(t *testing.T) {
 	t.Parallel()
 

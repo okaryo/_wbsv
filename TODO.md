@@ -164,7 +164,7 @@ Questions to answer:
 ### 8. Robustness and Load Behavior
 
 - [x] Add simple load testing scripts or commands.
-- [ ] Observe goroutine counts under concurrent clients.
+- [x] Observe goroutine counts under concurrent clients.
 - [ ] Detect connection leaks.
 - [ ] Explore worker pools.
 - [ ] Explore backpressure.
@@ -281,3 +281,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Added a small `wbsvload` command for sending concurrent HTTP requests and
   observing status distribution, failures, latency, bytes read, and keep-alive
   behavior.
+- Added server-side stats snapshots for active connections and goroutine counts
+  when TCP connections are tracked and untracked.
