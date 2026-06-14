@@ -70,6 +70,15 @@ go run ./cmd/wbsvload --requests 100 --concurrency 20 --disable-keep-alives
 This is useful for comparing goroutine-per-connection with a fixed connection
 worker pool.
 
+Add a hard active connection limit:
+
+```sh
+go run ./cmd/wbsv --handler-workers 2 --max-active-conns 10
+```
+
+This makes overload visible through rejected TCP connections and
+`rejected_connections` log snapshots.
+
 Send custom headers:
 
 ```sh
@@ -95,8 +104,8 @@ When keep-alive is disabled, the server should see more connection churn.
 The TCP server logs connection tracking events:
 
 ```text
-tracked connection: active_connections=10 goroutines=14
-untracked connection: active_connections=9 goroutines=13
+tracked connection: active_connections=10 rejected_connections=0 goroutines=14
+untracked connection: active_connections=9 rejected_connections=0 goroutines=13
 ```
 
 These values are snapshots. They are useful for observation, but they are not a
@@ -142,6 +151,8 @@ The load tool is intentionally small:
 - Server tests can wait for the active connection count to return to zero.
 - The server can optionally cap connection handler concurrency with
   `--handler-workers`.
+- The server can optionally reject excess active TCP connections with
+  `--max-active-conns`.
 - It is not a statistically rigorous benchmark tool.
 - It does not report percentiles yet.
 - It does not generate slow clients or backpressure scenarios yet.
@@ -155,6 +166,8 @@ The goal is observation and repeatability, not benchmark-grade measurement.
 - Server-side goroutine count should rise with active connection handlers and
   fall after connections finish.
 - A simple idle check can turn "maybe leaked" into a testable condition.
+- Backpressure turns overload into an explicit policy instead of an unbounded
+  wait.
 - Load testing should separate transport errors from HTTP status codes.
 - Latency values are only meaningful when interpreted with request count,
   concurrency, server logs, and machine conditions.

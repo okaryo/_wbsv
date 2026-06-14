@@ -167,7 +167,7 @@ Questions to answer:
 - [x] Observe goroutine counts under concurrent clients.
 - [x] Detect connection leaks.
 - [x] Explore worker pools.
-- [ ] Explore backpressure.
+- [x] Explore backpressure.
 - [x] Run race detection where applicable.
 - [ ] Document known limitations.
 
@@ -288,3 +288,5 @@ Use this section to record notable decisions, discoveries, and direction changes
 - Ran the test suite with the race detector while adding connection idle checks.
 - Added an optional TCP connection worker pool so handler concurrency can be
   capped and compared with the default goroutine-per-connection model.
+- Added a TCP-level active connection limit so excess accepted connections can
+  be rejected instead of queued indefinitely.

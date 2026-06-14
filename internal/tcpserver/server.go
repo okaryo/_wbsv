@@ -16,27 +16,38 @@ const bufferSize = 4096
 // ConnHandler handles one accepted TCP connection.
 type ConnHandler func(context.Context, net.Conn)
 
-// Server accepts raw TCP connections and handles each connection in a goroutine.
+// Server accepts raw TCP connections and handles each connection.
 type Server struct {
 	Addr            string
 	ReadTimeout     time.Duration
 	WriteTimeout    time.Duration
 	GracefulTimeout time.Duration
 	HandlerWorkers  int
+	MaxActiveConns  int
 	Logger          *log.Logger
 	ConnHandler     ConnHandler
 
-	mu           sync.Mutex
-	activeConns  map[net.Conn]struct{}
-	shuttingDown bool
-	wg           sync.WaitGroup
+	mu            sync.Mutex
+	activeConns   map[net.Conn]struct{}
+	rejectedConns int
+	shuttingDown  bool
+	wg            sync.WaitGroup
 }
 
 // Stats reports server-side concurrency counters for observation.
 type Stats struct {
-	ActiveConnections int
-	Goroutines        int
+	ActiveConnections   int
+	RejectedConnections int
+	Goroutines          int
 }
+
+type trackConnResult int
+
+const (
+	trackConnAccepted trackConnResult = iota
+	trackConnRejected
+	trackConnShuttingDown
+)
 
 // ListenAndServe starts listening on s.Addr and serves accepted connections.
 func (s *Server) ListenAndServe(ctx context.Context) error {
@@ -110,7 +121,13 @@ func (s *Server) Serve(ctx context.Context, listener net.Listener) error {
 			return err
 		}
 
-		if !s.trackConn(conn) {
+		switch s.trackConn(conn) {
+		case trackConnAccepted:
+		case trackConnRejected:
+			s.logStats("rejected connection")
+			_ = conn.Close()
+			continue
+		case trackConnShuttingDown:
 			_ = conn.Close()
 			return nil
 		}
@@ -199,11 +216,17 @@ func (s *Server) logf(format string, args ...any) {
 	}
 }
 
-func (s *Server) trackConn(conn net.Conn) bool {
+func (s *Server) trackConn(conn net.Conn) trackConnResult {
 	s.mu.Lock()
 	if s.shuttingDown {
 		s.mu.Unlock()
-		return false
+		return trackConnShuttingDown
+	}
+
+	if s.MaxActiveConns > 0 && len(s.activeConns) >= s.MaxActiveConns {
+		s.rejectedConns++
+		s.mu.Unlock()
+		return trackConnRejected
 	}
 
 	s.wg.Add(1)
@@ -214,7 +237,7 @@ func (s *Server) trackConn(conn net.Conn) bool {
 	s.mu.Unlock()
 
 	s.logStats("tracked connection")
-	return true
+	return trackConnAccepted
 }
 
 func (s *Server) untrackConn(conn net.Conn) {
@@ -229,11 +252,13 @@ func (s *Server) untrackConn(conn net.Conn) {
 func (s *Server) Stats() Stats {
 	s.mu.Lock()
 	activeConns := len(s.activeConns)
+	rejectedConns := s.rejectedConns
 	s.mu.Unlock()
 
 	return Stats{
-		ActiveConnections: activeConns,
-		Goroutines:        runtime.NumGoroutine(),
+		ActiveConnections:   activeConns,
+		RejectedConnections: rejectedConns,
+		Goroutines:          runtime.NumGoroutine(),
 	}
 }
 
@@ -264,7 +289,13 @@ func (s *Server) WaitForIdle(timeout time.Duration) bool {
 
 func (s *Server) logStats(event string) {
 	stats := s.Stats()
-	s.logf("%s: active_connections=%d goroutines=%d", event, stats.ActiveConnections, stats.Goroutines)
+	s.logf(
+		"%s: active_connections=%d rejected_connections=%d goroutines=%d",
+		event,
+		stats.ActiveConnections,
+		stats.RejectedConnections,
+		stats.Goroutines,
+	)
 }
 
 func (s *Server) beginShutdown() {

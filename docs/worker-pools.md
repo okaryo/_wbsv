@@ -49,12 +49,22 @@ This is why worker pools are closely related to backpressure. They cap server
 work, but the server still needs a policy for what to do when work arrives
 faster than it can be handled.
 
+This project also exposes `MaxActiveConns` as a simple admission-control limit.
+When the limit is reached, newly accepted connections are closed instead of
+being queued behind existing work.
+
 ## How To Try It
 
 Start the server with two connection workers:
 
 ```sh
 go run ./cmd/wbsv --handler-workers 2
+```
+
+Start the server with a connection limit:
+
+```sh
+go run ./cmd/wbsv --handler-workers 2 --max-active-conns 10
 ```
 
 Then run a concurrent load test:
@@ -80,3 +90,5 @@ clients arrive faster than workers finish.
   wait.
 - Waiting connections are still real resources.
 - Worker pools and backpressure should be studied together.
+- An active connection limit makes overload explicit by rejecting excess
+  connections.
