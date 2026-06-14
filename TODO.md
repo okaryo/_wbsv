@@ -169,7 +169,7 @@ Questions to answer:
 - [x] Explore worker pools.
 - [x] Explore backpressure.
 - [x] Run race detection where applicable.
-- [ ] Document known limitations.
+- [x] Document known limitations.
 
 Questions to answer:
 
@@ -177,6 +177,19 @@ Questions to answer:
 - Where can races occur?
 - When is goroutine-per-connection enough?
 - When might a worker pool help?
+
+### 9. Possible Next Learning Directions
+
+- [ ] Implement a true streaming response writer that can flush while a handler
+      is still running.
+- [ ] Extend WebSocket support beyond the handshake into frame parsing.
+- [ ] Explore TLS termination and how HTTPS changes the connection lifecycle.
+- [ ] Compare selected behavior against Go's `net/http.Server` in more detail.
+- [ ] Add more observability primitives such as structured logs or simple
+      counters.
+- [ ] Revisit parser strictness and RFC compliance tradeoffs.
+
+These are candidate directions, not a fixed plan.
 
 ## Learning Log
 
@@ -290,3 +303,5 @@ Use this section to record notable decisions, discoveries, and direction changes
   capped and compared with the default goroutine-per-connection model.
 - Added a TCP-level active connection limit so excess accepted connections can
   be rejected instead of queued indefinitely.
+- Documented known limitations so future learning steps can distinguish
+  deliberate scope from missing production behavior.

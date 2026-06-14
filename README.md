@@ -189,3 +189,17 @@ benchmark-grade measurement.
 - `docs/http-error-response.md`: notes on basic HTTP error responses.
 - `docs/http-net-http-comparison.md`: notes comparing selected behavior with Go's `net/http`.
 - `docs/http-server-integration.md`: notes on connecting the HTTP parser and writer to TCP.
+- `docs/handler-model.md`: notes on handler, context, response writer, and middleware abstractions.
+- `docs/router.md`: notes on static routes, methods, parameters, wildcards, and trie routing.
+- `docs/cookies.md`: notes on request cookies and `Set-Cookie` attributes.
+- `docs/cache-headers.md`: notes on `Cache-Control`, validators, and conditional requests.
+- `docs/cors.md`: notes on CORS requests, preflight handling, and credentials.
+- `docs/chunked-transfer.md`: notes on HTTP/1.1 chunked response framing.
+- `docs/file-streaming.md`: notes on `io.Reader` response bodies and file streaming.
+- `docs/range-requests.md`: notes on byte ranges and partial content responses.
+- `docs/server-sent-events.md`: notes on Server-Sent Event framing.
+- `docs/websocket-upgrade.md`: notes on the HTTP/1.1 WebSocket upgrade handshake.
+- `docs/load-testing.md`: notes on the small load test command and observation points.
+- `docs/worker-pools.md`: notes on fixed connection handler worker pools.
+- `docs/backpressure.md`: notes on active connection limits and overload policy.
+- `docs/known-limitations.md`: summary of current learning-scope limitations.
